@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "MEDINTEL — Clinical Intelligence",
+  title: "MediVault - Clinical Intelligence",
   description: "Clinical research, connected evidence, and disease intelligence. Demonstration workspace.",
   other: {
     "codex-preview": "development",

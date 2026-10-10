@@ -1,7 +1,7 @@
 'use client';
 import {useState,useEffect,lazy,Suspense} from 'react';
 import Link from '@/components/link';
-import {ArrowRight,ArrowUpRight,Check,Download,FileText,Leaf,Network,Plus,Search,Sparkles,Trash2,Upload,X} from 'lucide-react';
+import {ArrowRight,ArrowUpRight,Check,Download,FileText,Leaf,Network,Plus,Search,Sparkles,Trash2,Upload,X,Shield,QrCode,Pill,Calendar} from 'lucide-react';
 import {Tabs,TabsList,TabsTrigger,TabsContent} from '@/components/ui/tabs';
 import {Progress} from '@/components/ui/progress';
 import {Skeleton} from '@/components/ui/skeleton';
@@ -13,7 +13,167 @@ import type {ClinicalCase} from '@/types';
 import {PageHead,Picker,Empty,useData,download} from './shared';
 import {PaperCard} from './research-pages';
 const ClinicalModel=lazy(()=>import('@/components/3d/clinical-model').then(m=>({default:m.ClinicalIntelligenceModel})));
-export function Cases(){const data=useData();const [query,setQuery]=useState('');const [remove,setRemove]=useState<string|null>(null);const results=data.cases.filter(c=>c.title.toLowerCase().includes(query.toLowerCase()));return <><PageHead eyebrow="THE CLINICAL JOURNAL" title="Your cases, connected." description="Keep each clinical question and its supporting context together."><Link href="/case" className="btn primary"><Plus size={17}/>New case</Link></PageHead><div className="toolbar"><div className="search-box"><Search size={17}/><input aria-label="Search cases" placeholder="Find a clinical case…" value={query} onChange={e=>setQuery(e.target.value)}/></div><span className="muted small">{results.length} cases · stored on this device</span></div><div className="case-grid">{results.map(c=><article className="panel case-card" key={c.id}><div className="panel-title"><span className="pill">{c.status}</span><button className="icon-button" aria-label={'Delete '+c.title} onClick={()=>setRemove(c.id)}><Trash2 size={16}/></button></div><FileText className="case-card-icon"/><h2>{c.title}</h2><p>{c.symptoms}</p><div className="case-meta">{c.age||'—'} years · {c.sex}<br/>Updated {new Date(c.updatedAt).toLocaleDateString('en-GB')}</div><Link href={'/case?id='+c.id} className="text-link">Open case <ArrowUpRight size={16}/></Link></article>)}</div>{!results.length&&<Empty title={query?'No matching cases':'A fresh page for your research'} description={query?'Try a different search term.':'Create your first clinical case or try the sample.'} href="/case" label="Create a case"/>}<AlertDialog open={!!remove} onOpenChange={()=>setRemove(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Delete this local case?</AlertDialogTitle><AlertDialogDescription>The case and its attached local files will be removed from this browser.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep case</AlertDialogCancel><AlertDialogAction onClick={()=>{if(remove)caseService.remove(remove);setRemove(null);toast.success('Case deleted')}}>Delete case</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></>}
+
+export function Cases(){
+  const data=useData();
+  const [query,setQuery]=useState('');
+  const [remove,setRemove]=useState<string|null>(null);
+  const isPatient = data.user.role === 'patient';
+
+  // For Patient role: strictly display only authenticated patient's personal record
+  if (isPatient) {
+    const personalRecord = data.cases[0] || sampleCase;
+    return (
+      <>
+        <PageHead
+          eyebrow="PERSONAL HEALTH RECORD · ENCRYPTED PATIENT PORTAL"
+          title={`Health record for ${data.user.name}`}
+          description="Your longitudinal care history, visit notes, active prescriptions and diagnostic reports."
+        >
+          <Link href="/qr-center" className="btn primary">
+            <QrCode size={17}/> Generate Clinician Pass
+          </Link>
+        </PageHead>
+
+        <div className="demo-banner">
+          <Shield size={16}/>
+          <span>Patient Privacy Enclave · Only your authorized medical records are visible. Other patient files are strictly isolated and inaccessible.</span>
+        </div>
+
+        <div className="patient-portal-grid">
+          {/* Active Condition & Overview */}
+          <div className="panel patient-card">
+            <div className="panel-title">
+              <span className="eyebrow">PRIMARY DIAGNOSIS & OBSERVATION</span>
+              <span className="pill">Active Care Plan</span>
+            </div>
+            <h2>{personalRecord.title}</h2>
+            <p className="patient-symptoms-text">{personalRecord.symptoms}</p>
+            <div className="patient-vitals-strip">
+              <div><strong>Age</strong><span>{personalRecord.age || '34'} years</span></div>
+              <div><strong>Sex</strong><span>{personalRecord.sex}</span></div>
+              <div><strong>Updated</strong><span>{new Date(personalRecord.updatedAt).toLocaleDateString('en-GB')}</span></div>
+            </div>
+            <Link href={'/case?id='+personalRecord.id} className="text-link">
+              View Detailed Clinical Note <ArrowUpRight size={15}/>
+            </Link>
+          </div>
+
+          {/* Active Prescriptions */}
+          <div className="panel patient-card">
+            <div className="panel-title">
+              <span className="eyebrow">ACTIVE PRESCRIPTIONS</span>
+              <Pill size={17}/>
+            </div>
+            <h3>Current Regimen</h3>
+            <ul className="patient-prescription-list">
+              <li>
+                <strong>Paracetamol 500mg</strong>
+                <span>Oral tablet · Every 6 hours as needed for febrile symptoms</span>
+              </li>
+              <li>
+                <strong>Oral Rehydration Solution (ORS)</strong>
+                <span>Fluid management · 2 liters daily with monitoring</span>
+              </li>
+            </ul>
+            <p className="small muted">Prescribed by Metropolitan Medical Center Care Team.</p>
+          </div>
+
+          {/* Permitted Clinical Encounters */}
+          <div className="panel patient-card">
+            <div className="panel-title">
+              <span className="eyebrow">VISIT & ENCOUNTER HISTORY</span>
+              <Calendar size={17}/>
+            </div>
+            <div className="encounter-timeline">
+              <div className="encounter-entry">
+                <span className="encounter-date">28 Sep 2026</span>
+                <div>
+                  <strong>Ambulatory Care Follow-up</strong>
+                  <p>Vital signs stable. Hemodynamic monitoring performed. Platelet recovery assessed.</p>
+                </div>
+              </div>
+              <div className="encounter-entry">
+                <span className="encounter-date">23 Sep 2026</span>
+                <div>
+                  <strong>Initial Acute Care Visit</strong>
+                  <p>Presented with high fever and myalgia. Serial blood counts ordered.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Investigations & Lab Reports */}
+          <div className="panel patient-card">
+            <div className="panel-title">
+              <span className="eyebrow">LABORATORY INVESTIGATIONS</span>
+              <FileText size={17}/>
+            </div>
+            <h3>Verified Diagnostic Findings</h3>
+            <p className="patient-lab-findings">{personalRecord.labs || 'Platelet count 92,000/µL; leukocytes 3,200/µL. Dengue NS1 antigen reactive.'}</p>
+            <div className="patient-qr-share-box">
+              <QrCode size={20}/>
+              <div>
+                <strong>Share this record securely</strong>
+                <p>Generate a time-expiring QR code for your next physician encounter.</p>
+              </div>
+              <Link href="/qr-center" className="text-link">Open QR Pass →</Link>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Clinician role: case directory and case management
+  const results=data.cases.filter(c=>c.title.toLowerCase().includes(query.toLowerCase()));
+  return (
+    <>
+      <PageHead eyebrow="THE CLINICAL JOURNAL" title="Your cases, connected." description="Keep each clinical question and its supporting context together.">
+        <Link href="/case" className="btn primary"><Plus size={17}/>New case</Link>
+      </PageHead>
+      <div className="toolbar">
+        <div className="search-box">
+          <Search size={17}/>
+          <input aria-label="Search cases" placeholder="Find a clinical case…" value={query} onChange={e=>setQuery(e.target.value)}/>
+        </div>
+        <span className="muted small">{results.length} cases · stored on this device</span>
+      </div>
+      <div className="case-grid">
+        {results.map(c=>(
+          <article className="panel case-card" key={c.id}>
+            <div className="panel-title">
+              <span className="pill">{c.status}</span>
+              <button className="icon-button" aria-label={'Delete '+c.title} onClick={()=>setRemove(c.id)}>
+                <Trash2 size={16}/>
+              </button>
+            </div>
+            <FileText className="case-card-icon"/>
+            <h2>{c.title}</h2>
+            <p>{c.symptoms}</p>
+            <div className="case-meta">
+              {c.age||'—'} years · {c.sex}<br/>Updated {new Date(c.updatedAt).toLocaleDateString('en-GB')}
+            </div>
+            <Link href={'/case?id='+c.id} className="text-link">Open case <ArrowUpRight size={16}/></Link>
+          </article>
+        ))}
+      </div>
+      {!results.length&&<Empty title={query?'No matching cases':'A fresh page for your research'} description={query?'Try a different search term.':'Create your first clinical case or try the sample.'} href="/case" label="Create a case"/>}
+      <AlertDialog open={!!remove} onOpenChange={()=>setRemove(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this local case?</AlertDialogTitle>
+            <AlertDialogDescription>The case and its attached local files will be removed from this browser.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep case</AlertDialogCancel>
+            <AlertDialogAction onClick={()=>{if(remove)caseService.remove(remove);setRemove(null);toast.success('Case deleted')}}>Delete case</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
 const fields=[['symptoms','Presenting symptoms','Describe the symptoms, onset and duration.'],['history','Medical history','Relevant conditions, travel, exposures and family history.'],['examination','Examination findings','Vitals and relevant physical findings.'],['labs','Laboratory results','Results with units, dates and reference ranges where available.'],['imaging','Imaging findings','Summarize the radiology report.'],['medications','Current medications','Medication names and relevant history.'],['observations','Additional observations','The question you would like the evidence to address.']] as const;
 export function CaseEditor(){const [c,setC]=useState<ClinicalCase|null>(null);const [step,setStep]=useState(-1);const [tab,setTab]=useState('case');const [error,setError]=useState('');const steps=['Reading clinical information','Extracting medical entities','Matching sample cases','Indexing curated literature','Connecting illustrative trends','Building your evidence map'];useEffect(()=>{const q=new URLSearchParams(location.search);const id=q.get('id');setC(q.has('sample')?{...sampleCase,id:crypto.randomUUID()}:id?caseService.get(id)||newCase():newCase())},[]);if(!c)return <Skeleton className="editor-loading"/>;
 const update=(key:string,value:string)=>setC({...c,[key]:value,analysis:undefined,status:'Draft'});

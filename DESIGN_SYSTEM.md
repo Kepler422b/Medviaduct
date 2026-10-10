@@ -1,4 +1,4 @@
-# MEDINTEL design system
+# HEALTH BRIDGEAI design system
 
 Visual thesis: an elegant clinical journal becomes an interactive research workspace. The supplied reference is inspiration, not a page background. Original generated edge artwork is used with digitally recreated surfaces and spacing.
 
@@ -40,4 +40,4 @@ CSS reveals and hover elevation are restrained. Network motion explains relation
 
 ## Original artwork
 Generated once with the built-in image tool and copied to public/botanical.png.
-Prompt: Original wide 1536x1024 watercolor illustration for MEDINTEL; delicate eucalyptus-like leaves at upper right and lower left, one small pale lavender butterfly, warm ivory paper, exceptionally spacious blank center, soft diffuse light, restrained desaturated lavender and powder blue, no text, logo, UI, medical claims or watermark.
+Prompt: Original wide 1536x1024 watercolor illustration for HEALTH BRIDGEAI; delicate eucalyptus-like leaves at upper right and lower left, one small pale lavender butterfly, warm ivory paper, exceptionally spacious blank center, soft diffuse light, restrained desaturated lavender and powder blue, no text, logo, UI, medical claims or watermark.

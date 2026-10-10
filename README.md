@@ -1,4 +1,4 @@
-# MedIntel
+# Health BridgeAI
 
 > **Clinical Case & Disease Intelligence** — a proposed clinical research and decision-support platform that connects a clinician’s case with relevant published evidence and disease activity.
 
@@ -7,11 +7,11 @@
 
 ## Project overview
 
-MedIntel is designed to help clinicians and medical researchers explore complex cases alongside relevant published case reports, current medical research, disease trends, and evidence. Its intended workflow is:
+Health BridgeAI is designed to help clinicians and medical researchers explore complex cases alongside relevant published case reports, current medical research, disease trends, and evidence. Its intended workflow is:
 
 **Enter a clinical case → extract useful clinical features → find comparable cases and research → review disease activity → inspect cited evidence.**
 
-MedIntel is a research and decision-support concept. It is not intended to replace professional judgment, clinical guidelines, or local public-health advice, and it must not be represented as an autonomous diagnosis system.
+Health BridgeAI is a research and decision-support concept. It is not intended to replace professional judgment, clinical guidelines, or local public-health advice, and it must not be represented as an autonomous diagnosis system.
 
 ## Problem
 
@@ -19,7 +19,7 @@ Reviewing an unusual or complex case can require searching across separate liter
 
 ## Proposed solution
 
-MedIntel brings case entry, similar-case discovery, research discovery, and disease-trend exploration into one workspace. An AI-assisted service may help extract search features and summarize retrieved evidence, while source references let the user verify material independently. The value depends on the quality, coverage, and freshness of connected data sources; those integrations are not established as implemented in the available project material.
+Health BridgeAI brings case entry, similar-case discovery, research discovery, and disease-trend exploration into one workspace. An AI-assisted service may help extract search features and summarize retrieved evidence, while source references let the user verify material independently. The value depends on the quality, coverage, and freshness of connected data sources; those integrations are not established as implemented in the available project material.
 
 ## Core modules
 
@@ -56,7 +56,7 @@ The project prompt calls for a polished, responsive healthcare experience with i
 
 ### QR Center (proposed feature)
 
-The conversation explicitly says the QR feature is missing and requests it as a new addition. The intended page is `/qr-center`, linked from the main navigation near Latest Research and Saved Research. It should generate, display, download, scan, and resolve QR codes for MedIntel resources such as a case report, case analysis, similar-case results, research collection, evidence report, or disease-trend report.
+The conversation explicitly says the QR feature is missing and requests it as a new addition. The intended page is `/qr-center`, linked from the main navigation near Latest Research and Saved Research. It should generate, display, download, scan, and resolve QR codes for Health BridgeAI resources such as a case report, case analysis, similar-case results, research collection, evidence report, or disease-trend report.
 
 **Privacy requirement:** encode only an opaque, revocable reference or secure link. Never encode patient details, clinical notes, or other sensitive data in the QR payload. Resolving a link must enforce authentication or explicit authorization, access scope, expiry/revocation policy, and audit controls appropriate to the deployment. A QR code is a pointer, not an access-control mechanism. QR generation, scanning, and share-link resolution are requirements, not verified existing capabilities.
 
@@ -373,7 +373,7 @@ Contributions are welcome once the repository’s implementation conventions are
 
 ## Acknowledgments
 
-- Project requirements summarized from the MedIntel project conversation.
+- Project requirements summarized from the Health BridgeAI project conversation.
 - External source providers, datasets, and design assets should be credited here after they are selected and integrated.
 
 ---

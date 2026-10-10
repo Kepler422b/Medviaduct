@@ -10,6 +10,7 @@ enum Role {
   DOCTOR
   RESEARCHER
   ADMIN
+  PATIENT
 }
 enum Sex {
   FEMALE
