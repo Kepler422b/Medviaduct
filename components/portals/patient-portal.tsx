@@ -36,16 +36,25 @@ import {
 import { toast, Toaster } from 'sonner';
 import { patientService } from '@/services/patientService';
 import { qrTokenService, type ExpirationDuration } from '@/services/qrTokenService';
-import type {
-  PatientProfile,
-  Allergy,
-  ChronicCondition,
-  Prescription,
-  ConsultationVisit,
-  LabResult,
-  ImagingReport,
-  MedicalDocument,
-  QrShareToken
+import {
+  type PatientProfile,
+  type Allergy,
+  type ChronicCondition,
+  type Prescription,
+  type ConsultationVisit,
+  type LabResult,
+  type ImagingReport,
+  type MedicalDocument,
+  type QrShareToken,
+  initialPatientProfile,
+  initialAllergies,
+  initialConditions,
+  initialPrescriptions,
+  initialConsultations,
+  initialLabResults,
+  initialImagingReports,
+  initialDocuments,
+  initialQrTokens
 } from '@/data/patientData';
 import { MediMateChat } from './medimate-chat';
 
@@ -60,23 +69,16 @@ type TabKey =
 
 export function PatientPortal() {
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
-  const [profile, setProfile] = useState<PatientProfile>(() => patientService.getProfile());
-  const [allergies, setAllergies] = useState<Allergy[]>(() => patientService.getAllergies());
-  const [conditions, setConditions] = useState<ChronicCondition[]>(() =>
-    patientService.getConditions()
-  );
-  const [prescriptions, setPrescriptions] = useState<Prescription[]>(() =>
-    patientService.getPrescriptions()
-  );
-  const [consultations, setConsultations] = useState<ConsultationVisit[]>(() =>
-    patientService.getConsultations()
-  );
-  const [labs, setLabs] = useState<LabResult[]>(() => patientService.getLabResults());
-  const [imaging, setImaging] = useState<ImagingReport[]>(() => patientService.getImagingReports());
-  const [documents, setDocuments] = useState<MedicalDocument[]>(() =>
-    patientService.getDocuments()
-  );
-  const [qrTokens, setQrTokens] = useState<QrShareToken[]>(() => qrTokenService.list());
+  const [profile, setProfile] = useState<PatientProfile>(initialPatientProfile);
+  const [allergies, setAllergies] = useState<Allergy[]>(initialAllergies);
+  const [conditions, setConditions] = useState<ChronicCondition[]>(initialConditions);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>(initialPrescriptions);
+  const [consultations, setConsultations] = useState<ConsultationVisit[]>(initialConsultations);
+  const [labs, setLabs] = useState<LabResult[]>(initialLabResults);
+  const [imaging, setImaging] = useState<ImagingReport[]>(initialImagingReports);
+  const [documents, setDocuments] = useState<MedicalDocument[]>(initialDocuments);
+  const [qrTokens, setQrTokens] = useState<QrShareToken[]>(initialQrTokens);
+  const [isMounted, setIsMounted] = useState(false);
 
   // MediMate Assistant floating state
   const [showMediMate, setShowMediMate] = useState(false);
@@ -102,8 +104,19 @@ export function PatientPortal() {
   const [generatedQrDataUrl, setGeneratedQrDataUrl] = useState<string>('');
   const [activeCreatedToken, setActiveCreatedToken] = useState<QrShareToken | null>(null);
 
-  // Refresh data listener
+  // Refresh data listener and mount sync
   useEffect(() => {
+    setIsMounted(true);
+    setProfile(patientService.getProfile());
+    setAllergies(patientService.getAllergies());
+    setConditions(patientService.getConditions());
+    setPrescriptions(patientService.getPrescriptions());
+    setConsultations(patientService.getConsultations());
+    setLabs(patientService.getLabResults());
+    setImaging(patientService.getImagingReports());
+    setDocuments(patientService.getDocuments());
+    setQrTokens(qrTokenService.list());
+
     const handlePatientChange = () => {
       setProfile(patientService.getProfile());
       setAllergies(patientService.getAllergies());
@@ -1198,10 +1211,12 @@ export function PatientPortal() {
                         <div className="flex justify-between items-center text-[11px]">
                           <span className="text-[#607582]">Expires:</span>
                           <span className="font-mono text-rose-700 font-semibold">
-                            {new Date(activeCreatedToken.expiresAt).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
+                            {isMounted
+                              ? new Date(activeCreatedToken.expiresAt).toLocaleTimeString([], {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })
+                              : '24h'}
                           </span>
                         </div>
                       </div>
@@ -1268,10 +1283,10 @@ export function PatientPortal() {
                           {tok.recipientName || tok.recipientType}
                         </td>
                         <td className="p-3 text-[#607582] font-mono text-[11px]">
-                          {new Date(tok.createdAt).toLocaleDateString()}
+                          {isMounted ? new Date(tok.createdAt).toLocaleDateString() : tok.createdAt.slice(0, 10)}
                         </td>
                         <td className="p-3 text-[#607582] font-mono text-[11px]">
-                          {new Date(tok.expiresAt).toLocaleTimeString()}
+                          {isMounted ? new Date(tok.expiresAt).toLocaleTimeString() : tok.expiresAt.slice(11, 19)}
                         </td>
                         <td className="p-3">
                           <span
