@@ -71,7 +71,7 @@ const ROLES: {
     defaultEmail: 'clinician@hospital.org',
     defaultProfession: 'Physician',
     defaultOrganization: 'Metropolitan Medical Center',
-    destination: '/cases',
+    destination: '/dashboard',
   },
   {
     id: 'admin',
@@ -142,85 +142,87 @@ export function Auth({signup}:{signup:boolean}){
   };
 
   return (
-    <div className="auth-page">
+    <div className="mv-auth-page">
       {/* Blurred pastel radial gradient aura */}
-      <div className="auth-ambient-aura" aria-hidden="true">
-        <div className="aura-blob aura-sky-blue" />
-        <div className="aura-blob aura-pale-teal" />
-        <div className="aura-blob aura-lavender" />
+      <div className="mv-auth-aura" aria-hidden="true">
+        <div className="mv-auth-aura-blob mv-aura-sky-blue" />
+        <div className="mv-auth-aura-blob mv-aura-mint" />
+        <div className="mv-auth-aura-blob mv-aura-lavender" />
       </div>
 
-      <div className="auth-container">
-        {/* Top Navbar */}
-        <header className="auth-navbar">
-          <Link className="auth-brand" href="/">
-            <span className="auth-brand-badge">
-              <Activity size={18} />
+      {/* Top Floating Pill Navbar */}
+      <div className="mv-auth-nav-wrap">
+        <header className="mv-auth-navbar">
+          <Link className="mv-auth-brand" href="/">
+            <span className="mv-auth-brand-badge">
+              <Activity size={20} strokeWidth={2.2} />
             </span>
-            <div className="auth-brand-text">
-              <span className="auth-brand-name">MEDVIADUCT</span>
-              <span className="auth-brand-sub">CLINICAL INTELLIGENCE</span>
+            <div className="mv-auth-brand-text">
+              <span className="mv-auth-brand-name">MEDVIADUCT</span>
+              <span className="mv-auth-brand-sub">CLINICAL INTELLIGENCE</span>
             </div>
           </Link>
 
-          <nav className="auth-nav-links">
-            <Link href="/dashboard" className="auth-nav-link">Platform</Link>
-            <Link href="/#privacy" className="auth-nav-link">Privacy</Link>
-            <Link href="/" className="auth-nav-btn">
+          <nav className="mv-auth-nav-links">
+            <Link href="/dashboard" className="mv-auth-nav-link">Platform</Link>
+            <Link href="/#privacy" className="mv-auth-nav-link">Privacy</Link>
+            <Link href="/" className="mv-auth-nav-btn">
               Back to home <ArrowUpRight size={14} />
             </Link>
           </nav>
         </header>
+      </div>
 
-        {/* Main Two-Column Content Grid */}
-        <main className="auth-main-grid">
+      {/* Main Two-Column Content Grid */}
+      <div className="mv-auth-body-wrap">
+        <main className="mv-auth-grid">
           {/* Left Column: Hero */}
-          <section className="auth-hero-section">
-            <div className="auth-eyebrow-tag">
-              <span className="auth-dot" /> SECURE ACCESS · PERSONALIZED WORKSPACES
+          <section className="mv-auth-hero">
+            <div className="mv-auth-eyebrow">
+              <span className="mv-auth-dot" /> SECURE ACCESS · PERSONALIZED WORKSPACES
             </div>
 
-            <h1 className="auth-hero-title">
-              <span className="auth-hero-line1">The right access.</span>
-              <span className="auth-hero-line2">The right insight.</span>
+            <h1 className="mv-auth-hero-title">
+              <span className="mv-auth-title-line1">The right access.</span>
+              <span className="mv-auth-title-line2">The right insight.</span>
             </h1>
 
-            <p className="auth-hero-desc">
+            <p className="mv-auth-hero-desc">
               One connected health platform for personal records, clinical care and privacy-preserving public-health intelligence.
             </p>
 
-            <div className="auth-feature-list">
-              <div className="auth-feature-item">
-                <div className="auth-feature-icon-circle icon-patient">
+            <div className="mv-auth-feature-list">
+              <div className="mv-auth-feature-item">
+                <div className="mv-auth-feature-icon mv-auth-icon-patient">
                   <UserRound size={20} />
                 </div>
                 <div>
-                  <h3 className="auth-feature-title">Patient records</h3>
-                  <p className="auth-feature-text">
+                  <h3 className="mv-auth-feature-title">Patient records</h3>
+                  <p className="mv-auth-feature-text">
                     View your longitudinal health history, visit details and prescriptions — securely in one place.
                   </p>
                 </div>
               </div>
 
-              <div className="auth-feature-item">
-                <div className="auth-feature-icon-circle icon-clinical">
+              <div className="mv-auth-feature-item">
+                <div className="mv-auth-feature-icon mv-auth-icon-clinical">
                   <Hospital size={20} />
                 </div>
                 <div>
-                  <h3 className="auth-feature-title">Clinical workspace</h3>
-                  <p className="auth-feature-text">
+                  <h3 className="mv-auth-feature-title">Clinical workspace</h3>
+                  <p className="mv-auth-feature-text">
                     Access authorized patient records and manage clinical encounters with trusted tools.
                   </p>
                 </div>
               </div>
 
-              <div className="auth-feature-item">
-                <div className="auth-feature-icon-circle icon-public">
+              <div className="mv-auth-feature-item">
+                <div className="mv-auth-feature-icon mv-auth-icon-public">
                   <BarChart3 size={20} />
                 </div>
                 <div>
-                  <h3 className="auth-feature-title">Public-health insights</h3>
-                  <p className="auth-feature-text">
+                  <h3 className="mv-auth-feature-title">Public-health insights</h3>
+                  <p className="mv-auth-feature-text">
                     Explore anonymized population trends across regions, time periods and conditions.
                   </p>
                 </div>
@@ -229,21 +231,21 @@ export function Auth({signup}:{signup:boolean}){
           </section>
 
           {/* Right Column: Login Card */}
-          <section className="auth-card-panel">
-            <div className="auth-card-header">
-              <span className="auth-card-eyebrow">
+          <section className="mv-auth-card">
+            <div className="mv-auth-card-header">
+              <span className="mv-auth-card-eyebrow">
                 {signup ? 'NEW USER REGISTRATION' : 'CHOOSE YOUR WORKSPACE'}
               </span>
-              <h2 className="auth-card-title">
+              <h2 className="mv-auth-card-title">
                 {signup ? 'Create your workspace' : 'Welcome to Medviaduct'}
               </h2>
-              <p className="auth-card-subtitle">
+              <p className="mv-auth-card-subtitle">
                 Choose your secure workspace to continue.
               </p>
             </div>
 
             {/* Three selectable role cards */}
-            <div className="role-selector-grid" role="radiogroup" aria-label="Select your workspace role">
+            <div className="mv-auth-role-grid" role="radiogroup" aria-label="Select your workspace role">
               {ROLES.map((r) => {
                 const Icon = r.icon;
                 const isSelected = r.id === role;
@@ -253,55 +255,55 @@ export function Auth({signup}:{signup:boolean}){
                     type="button"
                     role="radio"
                     aria-checked={isSelected}
-                    className={`role-select-card ${isSelected ? 'active' : ''}`}
+                    className={`mv-auth-role-card ${isSelected ? 'active' : ''}`}
                     onClick={() => handleSelectRole(r.id)}
                   >
-                    <div className="role-card-top">
-                      <span className="role-icon-wrap">
+                    <div className="mv-auth-role-top">
+                      <span className="mv-auth-role-icon">
                         <Icon size={19} />
                       </span>
                       {isSelected && (
-                        <span className="role-check-badge">
-                          <Check size={12} strokeWidth={3} />
+                        <span className="mv-auth-check-badge">
+                          <Check size={11} strokeWidth={3} />
                         </span>
                       )}
                     </div>
-                    <div className="role-card-name">{r.title}</div>
-                    <p className="role-card-summary">{r.description}</p>
+                    <div className="mv-auth-role-name">{r.title}</div>
+                    <p className="mv-auth-role-desc">{r.description}</p>
                   </button>
                 );
               })}
             </div>
 
             {/* Role Context & Security Banner */}
-            <div className="role-security-banner">
-              <ShieldCheck size={16} className="role-banner-shield" />
+            <div className="mv-auth-security-banner">
+              <ShieldCheck size={16} className="mv-auth-banner-shield" />
               <span>{selectedRole.bannerText}</span>
             </div>
 
             {/* Form */}
-            <form className="auth-form" onSubmit={submit}>
+            <form className="mv-auth-form" onSubmit={submit}>
               {signup && (
-                <div className="auth-field-group">
-                  <label className="auth-field-label">Full name</label>
-                  <div className="auth-input-wrapper">
-                    <UserRound size={16} className="auth-input-icon" />
+                <div className="mv-auth-field">
+                  <label className="mv-auth-label">Full name</label>
+                  <div className="mv-auth-input-wrap">
+                    <UserRound size={16} className="mv-auth-input-icon" />
                     <input
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder={selectedRole.defaultName}
                       autoComplete="name"
-                      className="auth-input-control"
+                      className="mv-auth-input"
                     />
                   </div>
                 </div>
               )}
 
-              <div className="auth-field-group">
-                <label className="auth-field-label">Work or personal email</label>
-                <div className="auth-input-wrapper">
-                  <Mail size={16} className="auth-input-icon" />
+              <div className="mv-auth-field">
+                <label className="mv-auth-label">Work or personal email</label>
+                <div className="mv-auth-input-wrap">
+                  <Mail size={16} className="mv-auth-input-icon" />
                   <input
                     type="email"
                     required
@@ -309,15 +311,15 @@ export function Auth({signup}:{signup:boolean}){
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={selectedRole.defaultEmail}
                     autoComplete="email"
-                    className="auth-input-control"
+                    className="mv-auth-input"
                   />
                 </div>
               </div>
 
-              <div className="auth-field-group">
-                <label className="auth-field-label">Password</label>
-                <div className="auth-input-wrapper">
-                  <Lock size={16} className="auth-input-icon" />
+              <div className="mv-auth-field">
+                <label className="mv-auth-label">Password</label>
+                <div className="mv-auth-input-wrap">
+                  <Lock size={16} className="mv-auth-input-icon" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     minLength={8}
@@ -326,11 +328,11 @@ export function Auth({signup}:{signup:boolean}){
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     autoComplete="current-password"
-                    className="auth-input-control has-toggle"
+                    className="mv-auth-input has-toggle"
                   />
                   <button
                     type="button"
-                    className="auth-pw-toggle-btn"
+                    className="mv-auth-pw-btn"
                     onClick={() => setShowPassword(!showPassword)}
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
@@ -341,8 +343,8 @@ export function Auth({signup}:{signup:boolean}){
 
               {signup && (
                 <>
-                  <div className="auth-field-group">
-                    <label className="auth-field-label">Profession</label>
+                  <div className="mv-auth-field">
+                    <label className="mv-auth-label">Profession</label>
                     <Picker
                       value={profession}
                       onChange={setProfession}
@@ -356,16 +358,16 @@ export function Auth({signup}:{signup:boolean}){
                       label="Profession"
                     />
                   </div>
-                  <div className="auth-field-group">
-                    <label className="auth-field-label">Organization</label>
-                    <div className="auth-input-wrapper">
-                      <Hospital size={16} className="auth-input-icon" />
+                  <div className="mv-auth-field">
+                    <label className="mv-auth-label">Organization</label>
+                    <div className="mv-auth-input-wrap">
+                      <Hospital size={16} className="mv-auth-input-icon" />
                       <input
                         required
                         value={organization}
                         onChange={(e) => setOrganization(e.target.value)}
                         placeholder={selectedRole.defaultOrganization}
-                        className="auth-input-control"
+                        className="mv-auth-input"
                       />
                     </div>
                   </div>
@@ -373,28 +375,28 @@ export function Auth({signup}:{signup:boolean}){
               )}
 
               {error && (
-                <div role="alert" className="auth-error-banner">
+                <div role="alert" className="mv-auth-error">
                   {error}
                 </div>
               )}
 
-              <button className="auth-submit-btn" type="submit">
+              <button className="mv-auth-submit" type="submit">
                 {signup
                   ? selectedRole.signupButtonLabel
                   : `Continue as ${selectedRole.roleName}`}
                 <ArrowRight size={16} />
               </button>
 
-              <div className="auth-divider">
+              <div className="mv-auth-divider">
                 <span>or</span>
               </div>
 
-              <Link href={selectedRole.destination} className="auth-explore-link">
+              <Link href={selectedRole.destination} className="mv-auth-explore">
                 Explore without signing in →
               </Link>
 
-              <div className="auth-privacy-footer">
-                <Lock size={14} className="auth-privacy-lock" />
+              <div className="mv-auth-privacy">
+                <Lock size={14} />
                 <span>
                   Your data is protected with encryption, role-based access and privacy safeguards designed for clinical and public-health use.
                 </span>
@@ -406,6 +408,7 @@ export function Auth({signup}:{signup:boolean}){
     </div>
   );
 }
+
 
 
 
