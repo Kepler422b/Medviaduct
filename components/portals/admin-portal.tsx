@@ -45,6 +45,7 @@ import {
   formatPrivacySuppressed
 } from '@/data/maharashtraData';
 import { IndiaMap } from './india-map';
+import { DivisionComparisonChart } from './division-comparison-chart';
 
 const DISEASES: SurveilledDisease[] = [
   'Dengue',
@@ -115,21 +116,7 @@ export function AdminPortal() {
     };
   }, [filteredDistricts, selectedDisease]);
 
-  // Chart data for 6 Divisions
-  const divisionChartData = useMemo(() => {
-    return MAHARASHTRA_DIVISIONS.map((divMeta) => {
-      const districtsInDiv = MAHARASHTRA_DISTRICTS.filter((d) => d.division === divMeta.division);
-      const divCases = districtsInDiv.reduce(
-        (acc, curr) => acc + curr.diseases[selectedDisease].currentPeriodCases,
-        0
-      );
-      return {
-        division: divMeta.division,
-        cases: divCases,
-        districts: districtsInDiv.length
-      };
-    });
-  }, [selectedDisease]);
+
 
   // Privacy-safe CSV export handler
   const handleExportCSV = () => {
@@ -388,31 +375,7 @@ export function AdminPortal() {
         </section>
 
         {/* Division Comparisons Chart */}
-        <div className="bg-white rounded-2xl border border-[#DFE7E4] p-5 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div>
-              <h3 className="font-serif font-bold text-base text-[#133840] flex items-center gap-2">
-                <BarChart3 size={18} className="text-teal-700" />
-                Administrative Division Comparison: {selectedDisease} Burdens
-              </h3>
-              <p className="text-xs text-[#607582]">
-                Aggregated cases across the 6 administrative divisions of Maharashtra.
-              </p>
-            </div>
-          </div>
-
-          <div className="h-64 w-full pt-4 min-w-0">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={240}>
-              <BarChart data={divisionChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#EEF3F0" />
-                <XAxis dataKey="division" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="cases" fill="#133840" radius={[6, 6, 0, 0]} name={`${selectedDisease} Cases`} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        <DivisionComparisonChart selectedDisease={selectedDisease} />
 
         {/* District Rankings Table */}
         <div className="bg-white rounded-2xl border border-[#DFE7E4] p-5 shadow-xs space-y-4">
