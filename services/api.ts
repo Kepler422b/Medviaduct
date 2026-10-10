@@ -1,5 +1,5 @@
 /* Optional production adapter. Existing local services remain the offline fallback. */
-export const API_BASE = (typeof import.meta !== 'undefined' && (import.meta.env as ImportMetaEnv & { VITE_API_URL?: string })?.VITE_API_URL) || '';
+export const API_BASE = (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SECURITY_URL)) || '';
 export type ApiResponse<T> = { success: boolean; data?: T; error?: { code: string; message: string } };
 let token: string | null = typeof window !== 'undefined' ? localStorage.getItem('medintel.jwt') : null;
 export const apiAuth = { setToken(value:string){token=value; if(typeof window!=='undefined') localStorage.setItem('medintel.jwt',value)}, clear(){token=null; if(typeof window!=='undefined')localStorage.removeItem('medintel.jwt')}, get(){return token} };

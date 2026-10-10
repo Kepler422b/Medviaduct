@@ -26,7 +26,10 @@ import {
   Pill,
   ExternalLink,
   HelpCircle,
-  FileCheck
+  FileCheck,
+  LogOut,
+  X,
+  Lock
 } from 'lucide-react';
 import {
   LineChart,
@@ -42,6 +45,12 @@ import {
 import { toast, Toaster } from 'sonner';
 import { qrTokenService } from '@/services/qrTokenService';
 import { patientService } from '@/services/patientService';
+import {
+  securityService,
+  accessGrantStore,
+  type EmergencyReasonCode,
+  type ActiveAccessGrant,
+} from '@/services/securityService';
 import type { QrShareToken, PatientProfile } from '@/data/patientData';
 
 // Simulated longitudinal lab data for Recharts
@@ -172,18 +181,221 @@ export function ClinicianPortal() {
     }
   ]);
 
+  // Break-Glass Emergency Override State
+  const [showBreakGlassModal, setShowBreakGlassModal] = useState(false);
+  const [breakGlassReason, setBreakGlassReason] = useState<EmergencyReasonCode>('ACUTE_CARDIOVASCULAR_COLLAPSE');
+  const [breakGlassJustification, setBreakGlassJustification] = useState('');
+  const [breakGlassConfirmed, setBreakGlassConfirmed] = useState(false);
+  const [isSubmittingBreakGlass, setIsSubmittingBreakGlass] = useState(false);
+  const [emergencyActive, setEmergencyActive] = useState(false);
+  const [emergencySecondsLeft, setEmergencySecondsLeft] = useState(300);
+  const [activeEmergencyGrant, setActiveEmergencyGrant] = useState<ActiveAccessGrant | null>(null);
+
   // Initial auto-verify demo token
   useEffect(() => {
     handleVerifyToken('MV-SHARE-8F32A9C04B', false);
   }, []);
 
-  const handleVerifyToken = (tokenToVerify: string, triggerToast = true) => {
+  // Strict 5-minute Countdown Timer with Auto-Revoke & Memory Wipe
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (emergencyActive && emergencySecondsLeft > 0) {
+      timer = setInterval(() => {
+        setEmergencySecondsLeft((prev) => {
+          if (prev <= 1) {
+            if (timer) clearInterval(timer);
+            handleEndEmergencySession('Emergency access grant expired (5-minute strict TTL). In-memory clinical session wiped.');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [emergencyActive, emergencySecondsLeft]);
+
+  // Clean wipe of emergency access grant
+  const handleEndEmergencySession = async (customMessage?: string) => {
+    if (activeEmergencyGrant) {
+      try {
+        await securityService.revokeEmergencyAccess(activeEmergencyGrant.grantId);
+      } catch (e) {
+        console.warn('Revoke emergency access error:', e);
+      }
+    }
+    accessGrantStore.clear();
+    setEmergencyActive(false);
+    setActiveEmergencyGrant(null);
+    setActiveToken(null);
+    setEmergencySecondsLeft(0);
+    toast.warning(customMessage || 'Emergency access override session ended. Access grant revoked.');
+    setAuditLogs((prev) => [
+      {
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        action: 'Revoked emergency break-glass grant. Clinical session locked.',
+        practitioner: 'Dr. Alex Morgan, MD'
+      },
+      ...prev
+    ]);
+  };
+
+  // Submit Break-Glass Request
+  const handleExecuteBreakGlass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (breakGlassJustification.trim().length < 10) {
+      toast.error('Clinical justification must contain at least 10 characters.');
+      return;
+    }
+    if (!breakGlassConfirmed) {
+      toast.error('Please check the confirmation box to certify emergency override.');
+      return;
+    }
+
+    setIsSubmittingBreakGlass(true);
+    try {
+      const res = await securityService.requestEmergencyAccess({
+        patientId: 'p-ananya-deshmukh',
+        reasonCode: breakGlassReason,
+        justification: breakGlassJustification.trim(),
+        durationMinutes: 5,
+      });
+
+      const patientProfile = patientService.getProfile();
+      setPatient(patientProfile);
+
+      setActiveToken({
+        id: res.emergencyGrantId,
+        token: `EMERGENCY-OVERRIDE-${res.reasonCode}`,
+        patientId: patientProfile.id,
+        patientName: patientProfile.name,
+        createdAt: res.createdAt,
+        expiresAt: res.expiresAt,
+        status: 'Active',
+        recipientType: 'Emergency Access',
+        recipientName: 'Dr. Alex Morgan, MD',
+        permittedCategories: {
+          profile: true,
+          consultations: true,
+          medications: true,
+          labResults: true,
+          imaging: true,
+          allergies: true,
+          sensitiveNotes: false
+        },
+        scanCount: 1,
+        accessLogs: [
+          {
+            timestamp: res.createdAt,
+            accessedBy: 'Dr. Alex Morgan, MD',
+            facility: 'Metropolitan Medical Center ER',
+            action: `Break-Glass Override: ${res.reasonCode}. Justification: ${breakGlassJustification.trim()}`
+          }
+        ]
+      });
+
+      const inMemoryGrant: ActiveAccessGrant = {
+        grantId: res.emergencyGrantId,
+        patientId: patientProfile.id,
+        scopes: res.scopes,
+        expiresAt: res.expiresAt,
+        grantType: 'EMERGENCY_OVERRIDE',
+        reasonCode: res.reasonCode
+      };
+      setActiveEmergencyGrant(inMemoryGrant);
+      setEmergencyActive(true);
+      setEmergencySecondsLeft(300);
+      setShowBreakGlassModal(false);
+      setBreakGlassJustification('');
+      setBreakGlassConfirmed(false);
+
+      toast.success('Break-Glass emergency override granted. 5-minute strict countdown active.');
+      setAuditLogs((prev) => [
+        {
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          action: `Break-Glass declaration: ${res.reasonCode} (Grant ID: ${res.emergencyGrantId.slice(0, 8)}...)`,
+          practitioner: 'Dr. Alex Morgan, MD'
+        },
+        ...prev
+      ]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Emergency access request failed';
+      toast.error(msg);
+    } finally {
+      setIsSubmittingBreakGlass(false);
+    }
+  };
+
+  const handleVerifyToken = async (tokenToVerify: string, triggerToast = true) => {
+    const cleanToken = tokenToVerify.trim();
     setIsVerifying(true);
     setTokenStatusMessage(null);
 
+    // 1. Check if token is a single-use MediVault token format (MEDVIADUCT:v1:...)
+    if (cleanToken.startsWith('MEDVIADUCT:v1:')) {
+      try {
+        const res = await securityService.resolveQr(cleanToken);
+        const profile = patientService.getProfile();
+        setPatient(profile);
+        setActiveToken({
+          id: res.accessGrantId,
+          token: cleanToken,
+          patientId: res.patientId,
+          patientName: profile.name,
+          createdAt: new Date().toISOString(),
+          expiresAt: res.expiresAt,
+          status: 'Active',
+          recipientType: 'Clinician Verified',
+          recipientName: 'Dr. Alex Morgan, MD',
+          permittedCategories: {
+            profile: true,
+            consultations: true,
+            medications: true,
+            labResults: true,
+            imaging: true,
+            allergies: true,
+            sensitiveNotes: false
+          },
+          scanCount: 1,
+          accessLogs: [
+            {
+              timestamp: new Date().toISOString(),
+              accessedBy: 'Dr. Alex Morgan, MD',
+              facility: 'Metropolitan Medical Center OPD',
+              action: `Single-use QR redeemed. Scopes: ${res.scopes.join(', ')}`
+            }
+          ]
+        });
+        setTokenStatusMessage('Access Grant Verified: Single-use QR redeemed in-session.');
+        if (triggerToast) {
+          toast.success(`Access Grant acquired: ${profile.name}`);
+        }
+        setAuditLogs((prev) => [
+          {
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            action: `Redeemed single-use QR token (Grant ID: ${res.accessGrantId.slice(0, 8)}...)`,
+            practitioner: 'Dr. Alex Morgan, MD'
+          },
+          ...prev
+        ]);
+      } catch (err: unknown) {
+        setActiveToken(null);
+        const msg = err instanceof Error ? err.message : 'Invalid or expired QR token';
+        setTokenStatusMessage(`Authorization Failed: ${msg}`);
+        if (triggerToast) {
+          toast.error(msg);
+        }
+      } finally {
+        setIsVerifying(false);
+      }
+      return;
+    }
+
+    // 2. Standard token fallback
     setTimeout(() => {
       const verified = qrTokenService.validateAndLog(
-        tokenToVerify.trim(),
+        cleanToken,
         'Dr. Alex Morgan, MD',
         'Metropolitan Medical Center OPD'
       );
@@ -191,6 +403,14 @@ export function ClinicianPortal() {
       if (verified.valid && verified.token) {
         setActiveToken(verified.token);
         setPatient(patientService.getProfile());
+        // Also register into in-memory accessGrantStore
+        accessGrantStore.set({
+          grantId: verified.token.id,
+          patientId: verified.token.patientId,
+          scopes: ['timeline:read', 'clinical-summary:generate'],
+          expiresAt: verified.token.expiresAt,
+          grantType: 'CONSENT_GRANT',
+        });
         setTokenStatusMessage('Token Verified: Full clinical history unlocked.');
         if (triggerToast) {
           toast.success(`Access authorized: ${verified.token.patientName}`);
@@ -198,7 +418,7 @@ export function ClinicianPortal() {
         setAuditLogs((prev) => [
           {
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            action: `Authorized access to ${verified.token?.patientName} (${tokenToVerify})`,
+            action: `Authorized access to ${verified.token?.patientName} (${cleanToken})`,
             practitioner: 'Dr. Alex Morgan, MD'
           },
           ...prev
@@ -322,11 +542,52 @@ export function ClinicianPortal() {
         </div>
       </header>
 
+      {/* Active Emergency Break-Glass Notification Banner */}
+      {emergencyActive && activeEmergencyGrant && (
+        <div className="bg-rose-700 text-white px-4 py-2.5 text-xs font-medium border-b border-rose-800 shadow-sm animate-in fade-in">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="w-3 h-3 rounded-full bg-amber-300 animate-ping shrink-0" />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-bold uppercase tracking-wider bg-rose-900/80 text-amber-200 px-2 py-0.5 rounded text-[11px] border border-rose-600">
+                  ⚠️ Emergency Break-Glass Active
+                </span>
+                <span>
+                  Reason: <strong>{activeEmergencyGrant.reasonCode}</strong>
+                </span>
+                <span className="hidden sm:inline opacity-70">|</span>
+                <span>
+                  Strict TTL Expiry:{' '}
+                  <strong className="font-mono text-amber-200 text-sm underline decoration-amber-400">
+                    {Math.floor(emergencySecondsLeft / 60)
+                      .toString()
+                      .padStart(2, '0')}
+                    :
+                    {(emergencySecondsLeft % 60).toString().padStart(2, '0')}
+                  </strong>
+                </span>
+                <span className="hidden md:inline opacity-70">|</span>
+                <span className="text-rose-100 text-[11px]">
+                  Append-only tamper-evident audit ledger active
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => handleEndEmergencySession()}
+              className="bg-white text-rose-800 hover:bg-rose-50 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <LogOut size={13} />
+              <span>End Emergency Session</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Patient QR Lookup Bar */}
       <section className="bg-white border-b border-[#DFE7E4] py-4 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          <div className="flex-1 max-w-xl flex items-center gap-2">
-            <div className="relative flex-1">
+          <div className="flex-1 max-w-2xl flex items-center gap-2 flex-wrap sm:flex-nowrap">
+            <div className="relative flex-1 min-w-[240px]">
               <QrCode
                 size={16}
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-teal-700"
@@ -335,17 +596,26 @@ export function ClinicianPortal() {
                 type="text"
                 value={tokenInput}
                 onChange={(e) => setTokenInput(e.target.value)}
-                placeholder="Scan or enter QR Token (e.g. MV-SHARE-8F32A9C04B)"
+                placeholder="Scan or enter QR Token (e.g. MEDVIADUCT:v1:... or MV-SHARE-...)"
                 className="w-full pl-10 pr-4 py-2 bg-[#FAF9F6] border border-[#DFE7E4] rounded-xl text-xs font-mono font-medium text-[#133840] focus:outline-none focus:border-teal-600"
               />
             </div>
             <button
               onClick={() => handleVerifyToken(tokenInput)}
               disabled={isVerifying}
-              className="bg-[#133840] hover:bg-[#0E7068] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+              className="bg-[#133840] hover:bg-[#0E7068] text-white text-xs font-semibold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
             >
               <CheckCircle2 size={14} />
               <span>{isVerifying ? 'Verifying...' : 'Authorize Access'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowBreakGlassModal(true)}
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5 shrink-0 border border-rose-700 hover:border-rose-800 cursor-pointer"
+              title="Statutory Break-Glass Override for Life-Threatening Emergencies"
+            >
+              <AlertTriangle size={14} className="text-amber-300" />
+              <span>Emergency Break-Glass</span>
             </button>
           </div>
 
@@ -933,6 +1203,138 @@ export function ClinicianPortal() {
                 Acknowledge & Cancel Drug
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Emergency Break-Glass Modal Dialog */}
+      {showBreakGlassModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border-2 border-rose-400 animate-in fade-in zoom-in-95">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3 border-b border-rose-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center text-rose-700 shrink-0">
+                  <AlertTriangle size={22} className="text-rose-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold font-mono tracking-wider uppercase bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full border border-rose-200">
+                      HLTH-01 Protocol 4
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">5-Min TTL</span>
+                  </div>
+                  <h3 className="text-base font-serif font-bold text-rose-950 mt-0.5">
+                    Emergency Break-Glass Override
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBreakGlassModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Warning Callout */}
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-900 space-y-1">
+              <p className="font-bold flex items-center gap-1.5 text-rose-950">
+                <Lock size={13} />
+                <span>Statutory Emergency Override Warning</span>
+              </p>
+              <p className="text-[11px] leading-relaxed text-rose-800">
+                You are initiating an unprompted override of patient consent. This declaration generates an
+                <strong> immutable, tamper-evident audit log</strong> bound to your clinician identity
+                (<strong>Dr. Alex Morgan, MD #MH-MED-84920</strong>) and grants temporary 5-minute read access.
+              </p>
+            </div>
+
+            <form onSubmit={handleExecuteBreakGlass} className="space-y-4 text-xs">
+              {/* Emergency Reason Code Dropdown */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-[#133840] block">
+                  Emergency Medical Indication <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  value={breakGlassReason}
+                  onChange={(e) => setBreakGlassReason(e.target.value as EmergencyReasonCode)}
+                  className="w-full bg-[#FAF9F6] border border-[#DFE7E4] rounded-xl px-3 py-2 text-xs text-[#133840] font-medium focus:outline-none focus:border-rose-600"
+                >
+                  <option value="ACUTE_CARDIOVASCULAR_COLLAPSE">Cardiac Arrest / Acute Cardiovascular Collapse</option>
+                  <option value="UNRESPONSIVE_TRAUMA">Trauma / Unconscious Patient</option>
+                  <option value="RESPIRATORY_ARREST">Acute Respiratory Failure / Arrest</option>
+                  <option value="ACUTE_NEUROLOGICAL_DEFICIT">Unresponsive / Comatose / Neurological Deficit</option>
+                  <option value="IMMINENT_THREAT_TO_LIFE">Mass Casualty / Imminent Threat to Life</option>
+                  <option value="SEVERE_SEPSIS_SHOCK">Severe Sepsis Shock</option>
+                  <option value="ANAPHYLAXIS">Severe Anaphylaxis / Airway Compromise</option>
+                </select>
+              </div>
+
+              {/* Clinical Justification (enforcing min 10 chars) */}
+              <div className="space-y-1.5">
+                <div className="flex justify-between items-center">
+                  <label className="font-bold text-[#133840]">
+                    Clinical Justification <span className="text-rose-600">*</span>
+                  </label>
+                  <span
+                    className={`text-[10px] font-mono ${
+                      breakGlassJustification.trim().length >= 10
+                        ? 'text-emerald-700 font-bold'
+                        : 'text-amber-700 font-medium'
+                    }`}
+                  >
+                    {breakGlassJustification.trim().length} / 10 characters minimum
+                  </span>
+                </div>
+                <textarea
+                  value={breakGlassJustification}
+                  onChange={(e) => setBreakGlassJustification(e.target.value)}
+                  placeholder="Detail the patient presentation, acuity, and justification for bypassing normal consent..."
+                  rows={3}
+                  className="w-full bg-[#FAF9F6] border border-[#DFE7E4] rounded-xl p-3 text-xs text-[#133840] focus:outline-none focus:border-rose-600 resize-none font-sans"
+                />
+              </div>
+
+              {/* Explicit Confirmation Checkbox */}
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50/70 border border-amber-200 cursor-pointer hover:bg-amber-50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={breakGlassConfirmed}
+                  onChange={(e) => setBreakGlassConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded border-amber-400 text-rose-600 focus:ring-rose-500"
+                />
+                <span className="text-[11px] text-amber-950 leading-relaxed font-medium">
+                  I certify under penalty of professional license revocation that the patient is unable to provide consent,
+                  and immediate access is essential to preserve life or prevent irreversible neurological harm.
+                </span>
+              </label>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end items-center gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowBreakGlassModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    isSubmittingBreakGlass ||
+                    breakGlassJustification.trim().length < 10 ||
+                    !breakGlassConfirmed
+                  }
+                  className="bg-rose-700 hover:bg-rose-800 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <AlertTriangle size={14} />
+                  <span>
+                    {isSubmittingBreakGlass ? 'Authorizing...' : 'Execute Break-Glass (5-Min TTL)'}
+                  </span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

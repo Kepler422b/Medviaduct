@@ -31,11 +31,17 @@ import {
   FilePlus2,
   ExternalLink,
   Lock,
-  ChevronDown
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { patientService } from '@/services/patientService';
 import { qrTokenService, type ExpirationDuration } from '@/services/qrTokenService';
+import {
+  securityService,
+  type AvailableClinician,
+  type ConsentDto,
+} from '@/services/securityService';
 import {
   type PatientProfile,
   type Allergy,
@@ -104,6 +110,26 @@ export function PatientPortal() {
   const [generatedQrDataUrl, setGeneratedQrDataUrl] = useState<string>('');
   const [activeCreatedToken, setActiveCreatedToken] = useState<QrShareToken | null>(null);
 
+  // MediVault Zero-Trust Consents & Single-Use QR State
+  const [qrSubTab, setQrSubTab] = useState<'consents' | 'generator'>('consents');
+  const [consents, setConsents] = useState<ConsentDto[]>([]);
+  const [clinicians, setClinicians] = useState<AvailableClinician[]>([]);
+  const [showGrantModal, setShowGrantModal] = useState(false);
+  const [selectedClinicianId, setSelectedClinicianId] = useState('');
+  const [selectedConsentDuration, setSelectedConsentDuration] = useState<'15m' | '1h' | '24h'>('1h');
+  const [consentScopes, setConsentScopes] = useState<{
+    'timeline:read': boolean;
+    'clinical-summary:generate': boolean;
+  }>({
+    'timeline:read': true,
+    'clinical-summary:generate': true,
+  });
+  const [isSubmittingConsent, setIsSubmittingConsent] = useState(false);
+  const [singleUseQrPayload, setSingleUseQrPayload] = useState('');
+  const [singleUseQrDataUrl, setSingleUseQrDataUrl] = useState('');
+  const [singleUseQrExpiresAt, setSingleUseQrExpiresAt] = useState('');
+  const [isGeneratingSingleUseQr, setIsGeneratingSingleUseQr] = useState(false);
+
   // Refresh data listener and mount sync
   useEffect(() => {
     setIsMounted(true);
@@ -116,6 +142,13 @@ export function PatientPortal() {
     setImaging(patientService.getImagingReports());
     setDocuments(patientService.getDocuments());
     setQrTokens(qrTokenService.list());
+
+    // Load consents and clinicians
+    securityService.listConsents().then(setConsents).catch(() => {});
+    securityService.listClinicians().then((list) => {
+      setClinicians(list);
+      if (list.length > 0) setSelectedClinicianId(list[0].clinicianId);
+    }).catch(() => {});
 
     const handlePatientChange = () => {
       setProfile(patientService.getProfile());
@@ -190,6 +223,85 @@ export function PatientPortal() {
       toast.info('Access token revoked immediately');
     } catch (err: unknown) {
       toast.error('Failed to revoke access');
+    }
+  };
+
+  // Create new clinician consent
+  const handleGrantConsent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedClinicianId) {
+      toast.error('Please select an attending clinician.');
+      return;
+    }
+    const scopes: ('timeline:read' | 'clinical-summary:generate')[] = [];
+    if (consentScopes['timeline:read']) scopes.push('timeline:read');
+    if (consentScopes['clinical-summary:generate']) scopes.push('clinical-summary:generate');
+    if (scopes.length === 0) {
+      toast.error('Please select at least one permission scope.');
+      return;
+    }
+
+    const durationMinutes =
+      selectedConsentDuration === '15m' ? 15 : selectedConsentDuration === '1h' ? 60 : 1440;
+
+    setIsSubmittingConsent(true);
+    try {
+      const created = await securityService.createConsent({
+        clinicianId: selectedClinicianId,
+        scopes,
+        durationMinutes,
+      });
+      setConsents((prev) => [created, ...prev]);
+      setShowGrantModal(false);
+      toast.success('Clinician consent granted successfully.');
+
+      // Automatically generate a single-use QR for this newly created consent
+      await handleGenerateSingleUseQr(created.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create consent';
+      toast.error(msg);
+    } finally {
+      setIsSubmittingConsent(false);
+    }
+  };
+
+  // Revoke clinician consent
+  const handleRevokeConsent = async (consentId: string) => {
+    try {
+      const revoked = await securityService.revokeConsent(consentId);
+      setConsents((prev) => prev.map((c) => (c.id === consentId ? revoked : c)));
+      if (singleUseQrPayload) {
+        setSingleUseQrPayload('');
+        setSingleUseQrDataUrl('');
+      }
+      toast.info('Clinician consent revoked immediately. Any active session locked.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to revoke consent';
+      toast.error(msg);
+    }
+  };
+
+  // Generate single-use ephemeral QR token for consent
+  const handleGenerateSingleUseQr = async (consentId: string) => {
+    setIsGeneratingSingleUseQr(true);
+    try {
+      const res = await securityService.generateQr(consentId);
+      setSingleUseQrPayload(res.payload);
+      setSingleUseQrExpiresAt(res.expiresAt);
+
+      const dataUrl = await QRCode.toDataURL(res.payload, {
+        width: 256,
+        margin: 2,
+        color: { dark: '#123B46', light: '#FFFFFF' },
+      });
+      setSingleUseQrDataUrl(dataUrl);
+      setQrSubTab('generator');
+      toast.success('Single-use ephemeral QR token generated (5-min TTL).');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to generate QR token';
+      toast.error(msg);
+    } finally {
+      setIsGeneratingSingleUseQr(false);
     }
   };
 
@@ -1033,293 +1145,304 @@ export function PatientPortal() {
           </div>
         )}
 
-        {/* ===================== TAB 7: SECURE QR PASS GENERATOR ===================== */}
+        {/* ===================== TAB 7: CONSENTS & SECURE QR PASS ===================== */}
         {activeTab === 'qr-pass' && (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl border border-[#DFE7E4] p-6 shadow-xs space-y-6">
-              <div className="pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center font-bold">
-                    <QrCode size={18} />
-                  </div>
-                  <div>
-                    <h3 className="font-serif font-bold text-xl text-[#133840]">
-                      Secure Ephemeral QR Sharing Pass
-                    </h3>
-                    <p className="text-xs text-[#607582]">
-                      Zero health records embedded in the QR image. The QR code encodes only a random, short-lived token validated server-side.
-                    </p>
-                  </div>
-                </div>
+            {/* Top Subnav Toggle */}
+            <div className="flex items-center justify-between flex-wrap gap-4 bg-white p-4 rounded-2xl border border-[#DFE7E4] shadow-xs">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQrSubTab('consents')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    qrSubTab === 'consents'
+                      ? 'bg-[#133840] text-white shadow-xs'
+                      : 'bg-[#FAF9F6] text-[#607582] hover:bg-slate-100'
+                  }`}
+                >
+                  <ShieldCheck size={15} />
+                  <span>Doctor Consents & Permissions ({consents.filter((c) => c.status === 'active').length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQrSubTab('generator')}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                    qrSubTab === 'generator'
+                      ? 'bg-[#133840] text-white shadow-xs'
+                      : 'bg-[#FAF9F6] text-[#607582] hover:bg-slate-100'
+                  }`}
+                >
+                  <QrCode size={15} />
+                  <span>Single-Use QR Pass Generator</span>
+                </button>
               </div>
 
-              {/* Two Column Generator: Form (Left) & Live QR Pass (Right) */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                {/* Left Form: Config permissions */}
-                <form onSubmit={handleCreateQrPass} className="lg:col-span-7 space-y-5">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#133840]">
-                      1. Authorized Recipient Scope
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      {[
-                        { type: 'Clinician Verified', label: 'Doctor / Hospital' },
-                        { type: 'Emergency Access', label: 'ER Triage' },
-                        { type: 'Caregiver', label: 'Family / Caregiver' }
-                      ].map((rec) => (
-                        <button
-                          key={rec.type}
-                          type="button"
-                          onClick={() => setRecipientType(rec.type as any)}
-                          className={`p-2.5 rounded-xl border text-xs font-semibold text-left transition-all ${
-                            recipientType === rec.type
-                              ? 'border-[#133840] bg-teal-50/70 text-[#133840] shadow-xs'
-                              : 'border-[#DFE7E4] bg-white text-[#607582] hover:bg-[#FAF9F6]'
-                          }`}
-                        >
-                          {rec.label}
-                        </button>
-                      ))}
+              {qrSubTab === 'consents' && (
+                <button
+                  type="button"
+                  onClick={() => setShowGrantModal(true)}
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Grant Clinician Access</span>
+                </button>
+              )}
+            </div>
+
+            {/* SubTab 1: Doctor Consents Management */}
+            {qrSubTab === 'consents' && (
+              <div className="bg-white rounded-2xl border border-[#DFE7E4] p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-serif font-bold text-lg text-[#133840]">
+                      Clinician Access Consents
+                    </h3>
+                    <p className="text-xs text-[#607582]">
+                      Manage granular, revocable zero-trust data access granted to verified clinicians.
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono text-[#607582]">
+                    {consents.length} total consent records
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto border border-[#E2ECE7] rounded-xl bg-white">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#FAF9F6] border-b border-slate-200 text-[#607582] text-[10px] uppercase font-semibold">
+                      <tr>
+                        <th className="p-3">Attending Clinician</th>
+                        <th className="p-3">Authorized Scopes</th>
+                        <th className="p-3">Issued At</th>
+                        <th className="p-3">Expires At</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {consents.map((consent) => {
+                        const clinician = clinicians.find((c) => c.clinicianId === consent.clinicianId);
+                        const isExpired = new Date(consent.expiresAt).getTime() <= Date.now();
+                        const isRevoked = consent.status === 'revoked';
+                        const isActive = !isRevoked && !isExpired;
+
+                        return (
+                          <tr key={consent.id} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="p-3">
+                              <div className="font-bold text-[#133840]">
+                                {consent.clinicianName || clinician?.name || 'Verified Attending Clinician'}
+                              </div>
+                              <div className="text-[10px] text-[#607582] font-mono">
+                                {clinician ? `${clinician.licenseNumber} · ${clinician.hospital || 'Hospital OPD'}` : consent.clinicianId.slice(0, 8)}
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <div className="flex flex-wrap gap-1">
+                                {consent.scopes.map((scope) => (
+                                  <span
+                                    key={scope}
+                                    className="bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-full text-[10px] font-mono font-medium"
+                                  >
+                                    {scope}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="p-3 font-mono text-[11px] text-[#607582]">
+                              {isMounted
+                                ? new Date(consent.createdAt).toLocaleDateString([], {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : consent.createdAt.slice(0, 10)}
+                            </td>
+                            <td className="p-3 font-mono text-[11px] text-[#607582]">
+                              {isMounted
+                                ? new Date(consent.expiresAt).toLocaleDateString([], {
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                  })
+                                : consent.expiresAt.slice(0, 10)}
+                            </td>
+                            <td className="p-3">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                  isActive
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : isRevoked
+                                    ? 'bg-rose-50 text-rose-800 border-rose-200'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                                }`}
+                              >
+                                {isActive ? 'Active' : isRevoked ? 'Revoked' : 'Expired'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {isActive && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleGenerateSingleUseQr(consent.id)}
+                                      disabled={isGeneratingSingleUseQr}
+                                      className="bg-[#133840] hover:bg-[#0E7068] text-white px-2.5 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <QrCode size={12} />
+                                      <span>Generate QR</span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRevokeConsent(consent.id)}
+                                      className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                                    >
+                                      Revoke
+                                    </button>
+                                  </>
+                                )}
+                                {!isActive && (
+                                  <span className="text-[11px] text-slate-400 font-mono">Inactive</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* SubTab 2: Single-Use Ephemeral QR Pass Generator */}
+            {qrSubTab === 'generator' && (
+              <div className="bg-white rounded-2xl border border-[#DFE7E4] p-6 shadow-xs space-y-6">
+                <div className="pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center font-bold">
+                      <QrCode size={18} />
+                    </div>
+                    <div>
+                      <h3 className="font-serif font-bold text-xl text-[#133840]">
+                        Single-Use Ephemeral QR Health Pass
+                      </h3>
+                      <p className="text-xs text-[#607582]">
+                        Zero clinical data embedded in the QR image. Encodes an ephemeral token strictly consumed upon doctor redemption.
+                      </p>
                     </div>
                   </div>
+                </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-[#133840]">Recipient Name / Reference</label>
-                    <input
-                      type="text"
-                      value={recipientName}
-                      onChange={(e) => setRecipientName(e.target.value)}
-                      placeholder="e.g. Dr. Alex Morgan, MD"
-                      className="w-full bg-[#FAF9F6] border border-[#DFE7E4] rounded-xl px-3.5 py-2 text-xs text-[#133840] focus:outline-none focus:border-teal-600"
-                    />
-                  </div>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  {/* Left Column: Select Consent & Issue QR */}
+                  <div className="lg:col-span-7 space-y-5">
+                    <div className="p-4 rounded-xl bg-[#FAF9F6] border border-[#DFE7E4] space-y-3">
+                      <label className="text-xs font-bold uppercase tracking-wider text-[#133840] block">
+                        Select Authorized Consent
+                      </label>
+                      <select
+                        value={selectedClinicianId}
+                        onChange={(e) => setSelectedClinicianId(e.target.value)}
+                        className="w-full bg-white border border-[#DFE7E4] rounded-xl px-3 py-2 text-xs text-[#133840] font-medium focus:outline-none focus:border-teal-600"
+                      >
+                        {consents
+                          .filter((c) => c.status === 'active' && new Date(c.expiresAt).getTime() > Date.now())
+                          .map((c) => (
+                            <option key={c.id} value={c.clinicianId}>
+                              {c.clinicianName || 'Verified Attending Clinician'} (Scopes: {c.scopes.join(', ')})
+                            </option>
+                          ))}
+                      </select>
 
-                  {/* Expiration Duration */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#133840]">
-                      2. Pass Validity & Expiration
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {[
-                        { dur: '15_MINUTES', label: '15 Minutes', note: 'Emergency' },
-                        { dur: '1_HOUR', label: '1 Hour', note: 'Single OPD' },
-                        { dur: '24_HOURS', label: '24 Hours', note: 'Standard' },
-                        { dur: '7_DAYS', label: '7 Days', note: 'Caregiver' }
-                      ].map((d) => (
-                        <button
-                          key={d.dur}
-                          type="button"
-                          onClick={() => setSelectedDuration(d.dur as ExpirationDuration)}
-                          className={`p-2 rounded-xl border text-xs text-center transition-all ${
-                            selectedDuration === d.dur
-                              ? 'border-teal-600 bg-teal-50 text-teal-900 font-bold shadow-xs'
-                              : 'border-[#DFE7E4] bg-white text-[#607582] hover:bg-[#FAF9F6]'
-                          }`}
-                        >
-                          <div className="font-semibold">{d.label}</div>
-                          <div className="text-[10px] text-[#8CA09A]">{d.note}</div>
-                        </button>
-                      ))}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const activeConsent = consents.find(
+                            (c) => c.status === 'active' && new Date(c.expiresAt).getTime() > Date.now()
+                          );
+                          if (activeConsent) {
+                            handleGenerateSingleUseQr(activeConsent.id);
+                          } else {
+                            setShowGrantModal(true);
+                          }
+                        }}
+                        disabled={isGeneratingSingleUseQr}
+                        className="w-full bg-[#133840] hover:bg-[#0E7068] text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw size={14} className={isGeneratingSingleUseQr ? 'animate-spin' : ''} />
+                        <span>{isGeneratingSingleUseQr ? 'Generating Ephemeral Token...' : 'Generate Fresh Single-Use QR'}</span>
+                      </button>
                     </div>
-                  </div>
 
-                  {/* Category granular checkboxes */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#133840]">
-                      3. Permitted Record Categories
-                    </label>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      {[
-                        { key: 'profile', label: 'Patient Demographics' },
-                        { key: 'allergies', label: 'Drug Allergies' },
-                        { key: 'medications', label: 'Prescriptions & Drugs' },
-                        { key: 'labResults', label: 'Laboratory Test Panels' },
-                        { key: 'imaging', label: 'Radiology & Imaging' },
-                        { key: 'consultations', label: 'Consultation Timeline' },
-                        { key: 'sensitiveNotes', label: 'Confidential Notes' }
-                      ].map((cat) => (
-                        <label
-                          key={cat.key}
-                          className="flex items-center gap-2 p-2 rounded-lg bg-[#FAF9F6] border border-[#E4ECE7] cursor-pointer hover:bg-teal-50/40"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={(permittedCategories as any)[cat.key]}
-                            onChange={(e) =>
-                              setPermittedCategories({
-                                ...permittedCategories,
-                                [cat.key]: e.target.checked
-                              })
-                            }
-                            className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
-                          />
-                          <span className="text-[#133840] font-medium">{cat.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="w-full bg-[#133840] hover:bg-[#0E7068] text-white py-2.5 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2"
-                  >
-                    <RefreshCw size={14} />
-                    <span>Generate & Issue Secure QR Pass</span>
-                  </button>
-                </form>
-
-                {/* Right Column: Live QR Pass Card */}
-                <div className="lg:col-span-5 bg-gradient-to-b from-[#FAF9F6] to-white rounded-2xl border-2 border-[#CADBD5] p-5 flex flex-col items-center text-center shadow-sm">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-800 mb-1">
-                    <Lock size={13} />
-                    <span>Active Medviaduct Health Pass</span>
-                  </div>
-                  <p className="text-[11px] text-[#607582] max-w-xs">
-                    Scan using the Clinician Portal or recipient camera.
-                  </p>
-
-                  {/* QR Canvas Render */}
-                  <div className="mt-4 p-3 bg-white rounded-2xl border border-slate-200 shadow-inner">
-                    {generatedQrDataUrl ? (
-                      <img
-                        src={generatedQrDataUrl}
-                        alt="Medviaduct Secure Health Pass"
-                        className="w-48 h-48 object-contain rounded-lg"
-                      />
-                    ) : (
-                      <div className="w-48 h-48 flex items-center justify-center text-xs text-[#8CA09A]">
-                        Generating Pass...
+                    <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 text-xs text-amber-950 space-y-1">
+                      <div className="font-bold flex items-center gap-1.5 text-amber-900">
+                        <Lock size={13} />
+                        <span>Zero-Trust Ephemeral Guarantee</span>
                       </div>
-                    )}
+                      <p className="text-[11px] leading-relaxed text-amber-800">
+                        This token expires strictly in <strong>5 minutes</strong>. When your clinician redeems it, an in-memory access grant is minted, and this QR token is permanently burned. No clinical data is ever stored in the QR image itself.
+                      </p>
+                    </div>
                   </div>
 
-                  {activeCreatedToken && (
-                    <div className="w-full mt-4 space-y-2 text-xs">
-                      <div className="bg-[#FAF9F6] p-2.5 rounded-xl border border-slate-200 space-y-1">
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span className="text-[#607582]">Token ID:</span>
-                          <code className="font-mono font-bold text-[#133840]">
-                            {activeCreatedToken.token}
+                  {/* Right Column: Live QR Render */}
+                  <div className="lg:col-span-5 bg-gradient-to-b from-[#FAF9F6] to-white rounded-2xl border-2 border-[#CADBD5] p-5 flex flex-col items-center text-center shadow-sm">
+                    <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-teal-800 mb-1">
+                      <Lock size={13} />
+                      <span>Live Single-Use Health Pass</span>
+                    </div>
+                    <p className="text-[11px] text-[#607582] max-w-xs">
+                      Present to attending clinician for one-time redemption.
+                    </p>
+
+                    {/* QR Canvas Render */}
+                    <div className="mt-4 p-3 bg-white rounded-2xl border border-slate-200 shadow-inner">
+                      {singleUseQrDataUrl || generatedQrDataUrl ? (
+                        <img
+                          src={singleUseQrDataUrl || generatedQrDataUrl}
+                          alt="Medviaduct Single-Use QR Pass"
+                          className="w-52 h-52 object-contain rounded-lg"
+                        />
+                      ) : (
+                        <div className="w-52 h-52 flex items-center justify-center text-xs text-[#8CA09A]">
+                          Generate a Pass to view QR
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Copyable Token Code */}
+                    {(singleUseQrPayload || activeCreatedToken) && (
+                      <div className="w-full mt-4 space-y-2 text-xs">
+                        <div className="bg-[#FAF9F6] p-2.5 rounded-xl border border-slate-200 space-y-1">
+                          <div className="flex justify-between items-center text-[11px]">
+                            <span className="text-[#607582]">Token String:</span>
+                            <span className="font-mono text-rose-700 text-[10px] font-bold">5-Min Single-Use</span>
+                          </div>
+                          <code className="font-mono font-bold text-[11px] text-[#133840] break-all block bg-white p-2 rounded border border-slate-200 text-left">
+                            {singleUseQrPayload || activeCreatedToken?.token}
                           </code>
                         </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span className="text-[#607582]">Recipient:</span>
-                          <span className="font-medium text-[#133840]">
-                            {activeCreatedToken.recipientName || activeCreatedToken.recipientType}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px]">
-                          <span className="text-[#607582]">Expires:</span>
-                          <span className="font-mono text-rose-700 font-semibold">
-                            {isMounted
-                              ? new Date(activeCreatedToken.expiresAt).toLocaleTimeString([], {
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })
-                              : '24h'}
-                          </span>
-                        </div>
-                      </div>
 
-                      <div className="flex gap-2">
                         <button
                           type="button"
                           onClick={() => {
-                            navigator.clipboard.writeText(
-                              `${window.location.origin}/share/${activeCreatedToken.token}`
-                            );
-                            toast.success('Shareable link copied to clipboard');
+                            const val = singleUseQrPayload || activeCreatedToken?.token || '';
+                            navigator.clipboard.writeText(val);
+                            toast.success('Single-use token code copied to clipboard');
                           }}
-                          className="flex-1 bg-white hover:bg-slate-50 border border-slate-300 py-1.5 rounded-lg text-xs font-semibold text-[#133840] flex items-center justify-center gap-1 transition-colors"
+                          className="w-full bg-white hover:bg-slate-50 border border-slate-300 py-2 rounded-lg text-xs font-semibold text-[#133840] flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                         >
-                          <Copy size={12} />
-                          <span>Copy Link</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRevokeToken(activeCreatedToken.id)}
-                          className="flex-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 py-1.5 rounded-lg text-xs font-semibold text-rose-800 flex items-center justify-center gap-1 transition-colors"
-                        >
-                          <XCircle size={12} />
-                          <span>Revoke Now</span>
+                          <Copy size={13} />
+                          <span>Copy Token Code</span>
                         </button>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-
-            {/* Access Audit Trail Log */}
-            <div className="bg-white rounded-2xl border border-[#DFE7E4] p-5 shadow-xs space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                <h4 className="font-serif font-bold text-base text-[#133840] flex items-center gap-2">
-                  <ShieldCheck size={18} className="text-teal-700" />
-                  QR Token Access Audit & Verification History
-                </h4>
-                <span className="text-xs text-[#607582]">
-                  {qrTokens.length} total tokens tracked
-                </span>
-              </div>
-
-              <div className="overflow-x-auto border border-[#E2ECE7] rounded-xl bg-white">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[#FAF9F6] border-b border-slate-200 text-[#607582] text-[10px] uppercase font-semibold">
-                    <tr>
-                      <th className="p-3">Token Code</th>
-                      <th className="p-3">Recipient</th>
-                      <th className="p-3">Created</th>
-                      <th className="p-3">Expires At</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Scans</th>
-                      <th className="p-3">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {qrTokens.map((tok) => (
-                      <tr key={tok.id} className="hover:bg-slate-50">
-                        <td className="p-3 font-mono font-bold text-[#133840]">{tok.token}</td>
-                        <td className="p-3 text-[#133840] font-medium">
-                          {tok.recipientName || tok.recipientType}
-                        </td>
-                        <td className="p-3 text-[#607582] font-mono text-[11px]">
-                          {isMounted ? new Date(tok.createdAt).toLocaleDateString() : tok.createdAt.slice(0, 10)}
-                        </td>
-                        <td className="p-3 text-[#607582] font-mono text-[11px]">
-                          {isMounted ? new Date(tok.expiresAt).toLocaleTimeString() : tok.expiresAt.slice(11, 19)}
-                        </td>
-                        <td className="p-3">
-                          <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
-                              tok.status === 'Active'
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                : tok.status === 'Revoked'
-                                ? 'bg-rose-50 text-rose-800 border-rose-200'
-                                : 'bg-slate-100 text-slate-600 border-slate-200'
-                            }`}
-                          >
-                            {tok.status}
-                          </span>
-                        </td>
-                        <td className="p-3 font-mono text-center">{tok.scanCount}</td>
-                        <td className="p-3">
-                          {tok.status === 'Active' ? (
-                            <button
-                              onClick={() => handleRevokeToken(tok.id)}
-                              className="text-xs font-semibold text-rose-600 hover:text-rose-800"
-                            >
-                              Revoke
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-[#8CA09A]">Closed</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            )}
           </div>
         )}
       </main>
@@ -1381,6 +1504,150 @@ export function PatientPortal() {
                 <span>Download Report</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Grant Clinician Access Modal Dialog */}
+      {showGrantModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-teal-100 border border-teal-200 flex items-center justify-center text-teal-800 shrink-0">
+                  <ShieldCheck size={22} className="text-teal-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-serif font-bold text-[#133840]">
+                    Grant Clinician Access Consent
+                  </h3>
+                  <p className="text-xs text-[#607582]">
+                    Authorize an attending doctor to access your medical records securely.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGrantModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleGrantConsent} className="space-y-4 text-xs">
+              {/* Clinician Picker */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-[#133840] block">
+                  Select Attending Clinician <span className="text-rose-600">*</span>
+                </label>
+                <select
+                  value={selectedClinicianId}
+                  onChange={(e) => setSelectedClinicianId(e.target.value)}
+                  className="w-full bg-[#FAF9F6] border border-[#DFE7E4] rounded-xl px-3 py-2 text-xs text-[#133840] font-medium focus:outline-none focus:border-teal-600"
+                >
+                  {clinicians.map((c) => (
+                    <option key={c.clinicianId} value={c.clinicianId}>
+                      {c.name || 'Verified Attending Doctor'} · {c.specialty || 'General Practice'} ({c.licenseNumber})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Granular Scope Checkboxes */}
+              <div className="space-y-2">
+                <label className="font-bold text-[#133840] block">
+                  Permitted Access Scopes <span className="text-rose-600">*</span>
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#FAF9F6] border border-[#E2ECE7] cursor-pointer hover:bg-teal-50/40">
+                    <input
+                      type="checkbox"
+                      checked={consentScopes['timeline:read']}
+                      onChange={(e) =>
+                        setConsentScopes({
+                          ...consentScopes,
+                          'timeline:read': e.target.checked,
+                        })
+                      }
+                      className="mt-0.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                    />
+                    <div>
+                      <div className="font-bold text-[#133840]">timeline:read</div>
+                      <div className="text-[11px] text-[#607582]">
+                        Allows attending doctor to read consultation notes, encounter history, diagnoses, and lab results.
+                      </div>
+                    </div>
+                  </label>
+
+                  <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#FAF9F6] border border-[#E2ECE7] cursor-pointer hover:bg-teal-50/40">
+                    <input
+                      type="checkbox"
+                      checked={consentScopes['clinical-summary:generate']}
+                      onChange={(e) =>
+                        setConsentScopes({
+                          ...consentScopes,
+                          'clinical-summary:generate': e.target.checked,
+                        })
+                      }
+                      className="mt-0.5 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                    />
+                    <div>
+                      <div className="font-bold text-[#133840]">clinical-summary:generate</div>
+                      <div className="text-[11px] text-[#607582]">
+                        Allows clinician to generate synthesized, automated clinical handover summaries.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Validity Duration Selector */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-[#133840] block">
+                  Validity Duration <span className="text-rose-600">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: '15m', label: '15 Minutes', note: 'Emergency / Triage' },
+                    { id: '1h', label: '1 Hour', note: 'Standard OPD Visit' },
+                    { id: '24h', label: '24 Hours', note: 'Inpatient Observation' },
+                  ].map((d) => (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setSelectedConsentDuration(d.id as '15m' | '1h' | '24h')}
+                      className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                        selectedConsentDuration === d.id
+                          ? 'border-teal-700 bg-teal-50 text-teal-900 font-bold shadow-xs'
+                          : 'border-[#DFE7E4] bg-[#FAF9F6] text-[#607582] hover:bg-white'
+                      }`}
+                    >
+                      <div className="text-xs">{d.label}</div>
+                      <div className="text-[10px] text-[#8CA09A]">{d.note}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end items-center gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowGrantModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingConsent}
+                  className="bg-[#133840] hover:bg-[#0E7068] disabled:opacity-50 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                >
+                  <ShieldCheck size={14} />
+                  <span>{isSubmittingConsent ? 'Granting...' : 'Authorize & Issue Consent'}</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
