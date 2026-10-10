@@ -1,22 +1,37 @@
 'use client';
 import {useState,useEffect,type FormEvent} from 'react';
 import Link from '@/components/link';
-import {ArrowLeft,ArrowRight,Check,LogOut,UserRound,Hospital,ChartNoAxesCombined,Shield,Sparkles,Lock} from 'lucide-react';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Check,
+  LogOut,
+  UserRound,
+  Hospital,
+  BriefcaseMedical,
+  BarChart3,
+  Lock,
+  Mail,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  Activity
+} from 'lucide-react';
 import {Switch} from '@/components/ui/switch';
-import {Dialog,DialogContent,DialogHeader,DialogTitle,DialogDescription} from '@/components/ui/dialog';
 import {toast} from 'sonner';
 import {authService,writeState} from '@/services';
 import type {User,UserRole} from '@/types';
-import {PageHead,Picker,Brand,useData} from './shared';
+import {PageHead,Picker,useData} from './shared';
 
 export function Profile(){const data=useData();const [user,setUser]=useState<User>(data.user);const [notifications,setNotifications]=useState(data.notifications);const [motion,setMotion]=useState(data.reducedMotion);useEffect(()=>{setUser(data.user)},[data.user]);return <><PageHead eyebrow="PROFILE & PREFERENCES" title="A workspace that feels like yours." description="Your professional details and local demonstration preferences."/><div className="settings-layout"><form className="panel settings-form" onSubmit={e=>{e.preventDefault();try{authService.update(user);toast.success('Profile saved on this device')}catch{toast.error('Could not save profile')}}}><div className="profile-summary"><span className="avatar large">{user.name.split(' ').slice(-2).map(x=>x[0]).join('')}</span><div><h2>Your professional profile</h2><p>Shown within this browser’s workspace</p></div></div>{(['name','email','profession','organization'] as const).map(k=><label key={k}>{k[0].toUpperCase()+k.slice(1)}<input required value={user[k]} type={k==='email'?'email':'text'} onChange={e=>setUser({...user,[k]:e.target.value})}/></label>)}<button className="btn primary">Save profile <Check size={16}/></button></form><div><div className="panel preferences"><h2>Preferences</h2><div><label htmlFor="notifications"><strong>Workspace updates</strong><span>Remember your preference for future connected notifications.</span></label><Switch id="notifications" checked={notifications} onCheckedChange={v=>{setNotifications(v);writeState({notifications:v});toast.success('Notification preference saved')}}/></div><div><label htmlFor="motion"><strong>Reduced motion</strong><span>Limit movement in this workspace.</span></label><Switch id="motion" checked={motion} onCheckedChange={v=>{setMotion(v);writeState({reducedMotion:v});document.documentElement.classList.toggle('reduce-motion',v);toast.success('Motion preference saved')}}/></div></div><div className="panel"><h3>About this workspace</h3><p className="small muted">Cases, attachments, reading lists and preferences are stored locally in this browser. There is no connected clinical AI service, cloud account or live surveillance feed.</p><button className="btn secondary" onClick={()=>{authService.signOut();location.href='/login'}}><LogOut size={16}/>Leave demo session</button></div></div></div></>}
 
 const ROLES: {
   id: UserRole;
   title: string;
+  roleName: string;
   label: string;
   description: string;
-  helper: string;
+  bannerText: string;
   buttonLabel: string;
   signupButtonLabel: string;
   icon: typeof UserRound;
@@ -29,9 +44,10 @@ const ROLES: {
   {
     id: 'patient',
     title: 'Patient',
+    roleName: 'Patient',
     label: 'PERSONAL HEALTH RECORDS',
     description: 'Access your personal health journey, visit history and prescriptions.',
-    helper: 'Personal Health Enclave · View your permitted visits, diagnoses, prescriptions and secure QR tokens.',
+    bannerText: 'Patient records selected · Personal health enclave and encrypted data.',
     buttonLabel: 'Continue as Patient',
     signupButtonLabel: 'Create Patient Profile',
     icon: UserRound,
@@ -44,12 +60,13 @@ const ROLES: {
   {
     id: 'clinician',
     title: 'Clinician / Hospital',
+    roleName: 'Clinician',
     label: 'CLINICAL WORKSPACE',
     description: 'Access authorized patient records and manage clinical encounters.',
-    helper: 'Authorized Clinical Workspace · Access requires verified credentials, patient QR lookup and audit logging.',
+    bannerText: 'Clinical workspace selected · Verified access and audit logging.',
     buttonLabel: 'Continue as Clinician',
     signupButtonLabel: 'Create Clinician Profile',
-    icon: Hospital,
+    icon: BriefcaseMedical,
     defaultName: 'Dr. Alex Morgan',
     defaultEmail: 'clinician@hospital.org',
     defaultProfession: 'Physician',
@@ -59,12 +76,13 @@ const ROLES: {
   {
     id: 'admin',
     title: 'Administrator',
+    roleName: 'Administrator',
     label: 'PUBLIC-HEALTH INTELLIGENCE',
-    description: 'Explore aggregate disease trends across regions, time periods and condition categories.',
-    helper: 'Public Health Intelligence · Aggregated population data with strict group suppression (N ≥ 10). Individual records protected.',
+    description: 'Explore anonymized regional trends and aggregate analytics.',
+    bannerText: 'Public-health insights selected · Enforced anonymization and regional trends.',
     buttonLabel: 'Continue as Administrator',
     signupButtonLabel: 'Create Administrator Profile',
-    icon: ChartNoAxesCombined,
+    icon: BarChart3,
     defaultName: 'Dr. Elena Rostova',
     defaultEmail: 'admin@publichealth.gov',
     defaultProfession: 'Public Health Administrator',
@@ -75,22 +93,24 @@ const ROLES: {
 
 export function Auth({signup}:{signup:boolean}){
   const [role, setRole] = useState<UserRole>('clinician');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('clinician@hospital.org');
   const [password, setPassword] = useState('demo-password-123');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [profession, setProfession] = useState('Physician');
   const [organization, setOrganization] = useState('');
   const [error, setError] = useState('');
-  const [google, setGoogle] = useState(false);
 
   const selectedRole = ROLES.find(r => r.id === role) || ROLES[1];
 
-  // Set default placeholder values when role changes if fields are empty
   const handleSelectRole = (newRole: UserRole) => {
     setRole(newRole);
     setError('');
     const config = ROLES.find(r => r.id === newRole);
     if (config) {
+      if (!email || ROLES.some(r => r.defaultEmail === email)) {
+        setEmail(config.defaultEmail);
+      }
       if (!name || ROLES.some(r => r.defaultName === name)) {
         setName(config.defaultName);
       }
@@ -122,242 +142,268 @@ export function Auth({signup}:{signup:boolean}){
   };
 
   return (
-    <main className="auth-page">
-      <Link href="/" className="auth-back">
-        <ArrowLeft size={16}/> Back to Medviaduct
-      </Link>
-
-      {/* LEFT COLUMN: BRANDING & ROLE MISSION */}
-      <div className="auth-intro">
-        <div className="auth-brand-lockup">
-          <Brand />
-        </div>
-        
-        <div className="auth-eyebrow-tag">
-          SECURE ACCESS · PERSONALIZED WORKSPACES
-        </div>
-
-        <h1 className="auth-hero-title">
-          The right access.<br/>
-          <em>The right insight.</em>
-        </h1>
-
-        <p className="auth-hero-desc">
-          A connected health platform for personal records, clinical care and privacy-preserving public-health intelligence.
-        </p>
-
-        <div className="auth-feature-list">
-          <div className="auth-feature-item">
-            <span className="auth-feature-icon"><UserRound size={17}/></span>
-            <div>
-              <strong>Patient Self-Ownership</strong>
-              <p>Encrypted personal health record with granular, time-bound QR permissions for clinical encounters.</p>
-            </div>
-          </div>
-          <div className="auth-feature-item">
-            <span className="auth-feature-icon"><Hospital size={17}/></span>
-            <div>
-              <strong>Clinical Intelligence</strong>
-              <p>Authorized provider access for longitudinal chart review, differential reasoning and evidence synthesis.</p>
-            </div>
-          </div>
-          <div className="auth-feature-item">
-            <span className="auth-feature-icon"><ChartNoAxesCombined size={17}/></span>
-            <div>
-              <strong>Public-Health Enclave</strong>
-              <p>Population surveillance with strict minimum group-size suppression (N ≥ 10) to safeguard individual anonymity.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="auth-footer-statement">
-          <Shield size={14} />
-          <span>Secure patient records. Smarter public health.</span>
-        </div>
+    <div className="auth-page">
+      {/* Blurred pastel radial gradient aura */}
+      <div className="auth-ambient-aura" aria-hidden="true">
+        <div className="aura-blob aura-sky-blue" />
+        <div className="aura-blob aura-pale-teal" />
+        <div className="aura-blob aura-lavender" />
       </div>
 
-      {/* RIGHT COLUMN: REFINED WHITE LIQUID-GLASS LOGIN CARD */}
-      <div className="auth-glass-panel">
-        <div className="auth-card-inner">
-          <div className="auth-header-block">
-            <span className="eyebrow auth-eyebrow">
-              {signup ? 'NEW USER REGISTRATION' : 'CHOOSE YOUR WORKSPACE'}
+      <div className="auth-container">
+        {/* Top Navbar */}
+        <header className="auth-navbar">
+          <Link className="auth-brand" href="/">
+            <span className="auth-brand-badge">
+              <Activity size={18} />
             </span>
-            <h2 className="auth-form-title">
-              {signup ? 'Create your workspace' : 'Welcome to Medviaduct'}
-            </h2>
-            <p className="auth-form-subtitle">
-              Choose your workspace to continue securely.
-            </p>
-          </div>
-
-          {/* THREE ROLE SELECTION CARDS */}
-          <div className="role-selector" role="radiogroup" aria-label="Select your workspace role">
-            {ROLES.map((r) => {
-              const Icon = r.icon;
-              const isSelected = r.id === role;
-              return (
-                <div
-                  key={r.id}
-                  role="radio"
-                  aria-checked={isSelected}
-                  tabIndex={0}
-                  className={`role-card ${isSelected ? 'active' : ''}`}
-                  onClick={() => handleSelectRole(r.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      handleSelectRole(r.id);
-                    }
-                  }}
-                >
-                  <div className="role-card-header">
-                    <span className="role-card-icon">
-                      <Icon size={19} />
-                    </span>
-                    <span className="role-card-badge">{r.label}</span>
-                    {isSelected && (
-                      <span className="role-active-check">
-                        <Check size={13} />
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="role-card-title">{r.title}</h3>
-                  <p className="role-card-desc">{r.description}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* ROLE CONTEXT BANNER */}
-          <div className="role-context-banner">
-            <Sparkles size={15} />
-            <p>{selectedRole.helper}</p>
-          </div>
-
-          {/* AUTHENTICATION FORM */}
-          <form className="auth-fields-form" onSubmit={submit}>
-            <p className="auth-demo-notice">
-              <Lock size={13} />
-              <span>This demonstration opens a local session with verified permissions. No plaintext passwords stored.</span>
-            </p>
-
-            {signup && (
-              <label className="auth-label">
-                <span>Full name</span>
-                <input
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={selectedRole.defaultName}
-                  autoComplete="name"
-                />
-              </label>
-            )}
-
-            <label className="auth-label">
-              <span>Work or personal email</span>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={selectedRole.defaultEmail}
-                autoComplete="email"
-              />
-            </label>
-
-            <label className="auth-label">
-              <span>Demo password</span>
-              <input
-                type="password"
-                minLength={8}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-                autoComplete="off"
-              />
-            </label>
-
-            {signup && (
-              <>
-                <label className="auth-label">
-                  <span>Profession</span>
-                  <Picker
-                    value={profession}
-                    onChange={setProfession}
-                    options={
-                      role === 'patient'
-                        ? ['Patient', 'Caregiver', 'Patient Advocate']
-                        : role === 'admin'
-                        ? ['Public Health Administrator', 'Epidemiologist', 'Surveillance Analyst', 'Health Director']
-                        : ['Physician', 'Specialist', 'Hospital Clinician', 'Medical Researcher', 'Nurse Practitioner']
-                    }
-                    label="Profession"
-                  />
-                </label>
-                <label className="auth-label">
-                  <span>Organization</span>
-                  <input
-                    required
-                    value={organization}
-                    onChange={(e) => setOrganization(e.target.value)}
-                    placeholder={selectedRole.defaultOrganization}
-                  />
-                </label>
-              </>
-            )}
-
-            {error && (
-              <p role="alert" className="error-message">
-                {error}
-              </p>
-            )}
-
-            <button className="btn primary auth-submit-btn" type="submit">
-              {signup ? selectedRole.signupButtonLabel : selectedRole.buttonLabel}
-              <ArrowRight size={17} />
-            </button>
-
-            <button
-              className="btn secondary auth-google-btn"
-              type="button"
-              onClick={() => setGoogle(true)}
-            >
-              Continue with Google
-            </button>
-
-            <div className="auth-secondary-links">
-              <p>
-                {signup ? 'Already have a demo profile?' : 'New to Medviaduct?'}{' '}
-                <Link className="text-link" href={signup ? '/login' : '/signup'}>
-                  {signup ? 'Sign in' : 'Create a profile'}
-                </Link>
-              </p>
-              <Link href={selectedRole.destination} className="text-link auth-quiet-link">
-                Explore {selectedRole.title} without signing in →
-              </Link>
+            <div className="auth-brand-text">
+              <span className="auth-brand-name">MEDVIADUCT</span>
+              <span className="auth-brand-sub">CLINICAL INTELLIGENCE</span>
             </div>
-          </form>
-        </div>
-      </div>
-
-      {/* GOOGLE DIALOG */}
-      <Dialog open={google} onOpenChange={setGoogle}>
-        <DialogContent className="auth-dialog-content">
-          <DialogHeader>
-            <DialogTitle>Google sign-in is not connected</DialogTitle>
-            <DialogDescription>
-              This demonstration uses a verified local role session without external third-party identity providers. Continue with a local demo session as {selectedRole.title} to explore the workspace.
-            </DialogDescription>
-          </DialogHeader>
-          <Link className="btn primary" href={selectedRole.destination}>
-            Continue as {selectedRole.title} <ArrowRight size={16}/>
           </Link>
-        </DialogContent>
-      </Dialog>
-    </main>
+
+          <nav className="auth-nav-links">
+            <Link href="/dashboard" className="auth-nav-link">Platform</Link>
+            <Link href="/#privacy" className="auth-nav-link">Privacy</Link>
+            <Link href="/" className="auth-nav-btn">
+              Back to home <ArrowUpRight size={14} />
+            </Link>
+          </nav>
+        </header>
+
+        {/* Main Two-Column Content Grid */}
+        <main className="auth-main-grid">
+          {/* Left Column: Hero */}
+          <section className="auth-hero-section">
+            <div className="auth-eyebrow-tag">
+              <span className="auth-dot" /> SECURE ACCESS · PERSONALIZED WORKSPACES
+            </div>
+
+            <h1 className="auth-hero-title">
+              <span className="auth-hero-line1">The right access.</span>
+              <span className="auth-hero-line2">The right insight.</span>
+            </h1>
+
+            <p className="auth-hero-desc">
+              One connected health platform for personal records, clinical care and privacy-preserving public-health intelligence.
+            </p>
+
+            <div className="auth-feature-list">
+              <div className="auth-feature-item">
+                <div className="auth-feature-icon-circle icon-patient">
+                  <UserRound size={20} />
+                </div>
+                <div>
+                  <h3 className="auth-feature-title">Patient records</h3>
+                  <p className="auth-feature-text">
+                    View your longitudinal health history, visit details and prescriptions — securely in one place.
+                  </p>
+                </div>
+              </div>
+
+              <div className="auth-feature-item">
+                <div className="auth-feature-icon-circle icon-clinical">
+                  <Hospital size={20} />
+                </div>
+                <div>
+                  <h3 className="auth-feature-title">Clinical workspace</h3>
+                  <p className="auth-feature-text">
+                    Access authorized patient records and manage clinical encounters with trusted tools.
+                  </p>
+                </div>
+              </div>
+
+              <div className="auth-feature-item">
+                <div className="auth-feature-icon-circle icon-public">
+                  <BarChart3 size={20} />
+                </div>
+                <div>
+                  <h3 className="auth-feature-title">Public-health insights</h3>
+                  <p className="auth-feature-text">
+                    Explore anonymized population trends across regions, time periods and conditions.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Right Column: Login Card */}
+          <section className="auth-card-panel">
+            <div className="auth-card-header">
+              <span className="auth-card-eyebrow">
+                {signup ? 'NEW USER REGISTRATION' : 'CHOOSE YOUR WORKSPACE'}
+              </span>
+              <h2 className="auth-card-title">
+                {signup ? 'Create your workspace' : 'Welcome to Medviaduct'}
+              </h2>
+              <p className="auth-card-subtitle">
+                Choose your secure workspace to continue.
+              </p>
+            </div>
+
+            {/* Three selectable role cards */}
+            <div className="role-selector-grid" role="radiogroup" aria-label="Select your workspace role">
+              {ROLES.map((r) => {
+                const Icon = r.icon;
+                const isSelected = r.id === role;
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={isSelected}
+                    className={`role-select-card ${isSelected ? 'active' : ''}`}
+                    onClick={() => handleSelectRole(r.id)}
+                  >
+                    <div className="role-card-top">
+                      <span className="role-icon-wrap">
+                        <Icon size={19} />
+                      </span>
+                      {isSelected && (
+                        <span className="role-check-badge">
+                          <Check size={12} strokeWidth={3} />
+                        </span>
+                      )}
+                    </div>
+                    <div className="role-card-name">{r.title}</div>
+                    <p className="role-card-summary">{r.description}</p>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Role Context & Security Banner */}
+            <div className="role-security-banner">
+              <ShieldCheck size={16} className="role-banner-shield" />
+              <span>{selectedRole.bannerText}</span>
+            </div>
+
+            {/* Form */}
+            <form className="auth-form" onSubmit={submit}>
+              {signup && (
+                <div className="auth-field-group">
+                  <label className="auth-field-label">Full name</label>
+                  <div className="auth-input-wrapper">
+                    <UserRound size={16} className="auth-input-icon" />
+                    <input
+                      required
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={selectedRole.defaultName}
+                      autoComplete="name"
+                      className="auth-input-control"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="auth-field-group">
+                <label className="auth-field-label">Work or personal email</label>
+                <div className="auth-input-wrapper">
+                  <Mail size={16} className="auth-input-icon" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={selectedRole.defaultEmail}
+                    autoComplete="email"
+                    className="auth-input-control"
+                  />
+                </div>
+              </div>
+
+              <div className="auth-field-group">
+                <label className="auth-field-label">Password</label>
+                <div className="auth-input-wrapper">
+                  <Lock size={16} className="auth-input-icon" />
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    minLength={8}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    autoComplete="current-password"
+                    className="auth-input-control has-toggle"
+                  />
+                  <button
+                    type="button"
+                    className="auth-pw-toggle-btn"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {signup && (
+                <>
+                  <div className="auth-field-group">
+                    <label className="auth-field-label">Profession</label>
+                    <Picker
+                      value={profession}
+                      onChange={setProfession}
+                      options={
+                        role === 'patient'
+                          ? ['Patient', 'Caregiver', 'Patient Advocate']
+                          : role === 'admin'
+                          ? ['Public Health Administrator', 'Epidemiologist', 'Surveillance Analyst', 'Health Director']
+                          : ['Physician', 'Specialist', 'Hospital Clinician', 'Medical Researcher', 'Nurse Practitioner']
+                      }
+                      label="Profession"
+                    />
+                  </div>
+                  <div className="auth-field-group">
+                    <label className="auth-field-label">Organization</label>
+                    <div className="auth-input-wrapper">
+                      <Hospital size={16} className="auth-input-icon" />
+                      <input
+                        required
+                        value={organization}
+                        onChange={(e) => setOrganization(e.target.value)}
+                        placeholder={selectedRole.defaultOrganization}
+                        className="auth-input-control"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {error && (
+                <div role="alert" className="auth-error-banner">
+                  {error}
+                </div>
+              )}
+
+              <button className="auth-submit-btn" type="submit">
+                {signup
+                  ? selectedRole.signupButtonLabel
+                  : `Continue as ${selectedRole.roleName}`}
+                <ArrowRight size={16} />
+              </button>
+
+              <div className="auth-divider">
+                <span>or</span>
+              </div>
+
+              <Link href={selectedRole.destination} className="auth-explore-link">
+                Explore without signing in →
+              </Link>
+
+              <div className="auth-privacy-footer">
+                <Lock size={14} className="auth-privacy-lock" />
+                <span>
+                  Your data is protected with encryption, role-based access and privacy safeguards designed for clinical and public-health use.
+                </span>
+              </div>
+            </form>
+          </section>
+        </main>
+      </div>
+    </div>
   );
 }
 
