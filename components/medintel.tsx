@@ -1,13 +1,25 @@
 'use client';
-import {useState, useEffect, useRef, lazy, Suspense} from 'react';
+import {useState, useEffect, useRef, useMemo, lazy, Suspense} from 'react';
 import Link from '@/components/link';
 import {
   ArrowUpRight, ArrowRight, Activity, Network, BookOpen, FileText, Globe2,
   ShieldCheck, Clock, LineChart, Key, QrCode, Users, Lock, Database, Menu, X,
-  CheckCircle2, Shield
+  CheckCircle2, Shield, Search, ChevronLeft, ChevronRight, MapPin, Building2,
+  Filter, Layers, Sparkles
 } from 'lucide-react';
 import {Brand} from './shared';
 import {trends} from '@/data/demo';
+import { INDIA_STATES_DATA, type StateSurveillanceRecord } from '@/data/indiaData';
+import {
+  MAHARASHTRA_DIVISIONS,
+  MAHARASHTRA_DISTRICTS,
+  type AdministrativeDivision
+} from '@/data/maharashtraData';
+import {
+  getSurveillanceMetrics,
+  type SurveillanceCondition,
+  type SurveillanceTimeRange
+} from '@/data/surveillanceService';
 
 const ClinicalModel = lazy(() => import('@/components/3d/clinical-model').then(m => ({default: m.ClinicalIntelligenceModel})));
 
@@ -25,9 +37,15 @@ export default function MedIntel() {
   const [scene, setScene] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [selectedRegion, setSelectedRegion] = useState('south-asia');
-  const [timeRange, setTimeRange] = useState<'8 weeks' | '4 weeks'>('8 weeks');
-  const [conditionFilter, setConditionFilter] = useState('All');
+  const [selectedStateId, setSelectedStateId] = useState('all-india');
+  const [selectedDivision, setSelectedDivision] = useState<AdministrativeDivision | 'all'>('all');
+  const [selectedDistrictId, setSelectedDistrictId] = useState('all');
+  const [stateSearch, setStateSearch] = useState('');
+  const [timeRange, setTimeRange] = useState<SurveillanceTimeRange>('8 weeks');
+  const [conditionFilter, setConditionFilter] = useState<SurveillanceCondition>('All');
+
+  const stateScrollRef = useRef<HTMLDivElement>(null);
+  const districtScrollRef = useRef<HTMLDivElement>(null);
 
   const landingRef = useRef<HTMLElement>(null);
   const approachRef = useRef<HTMLElement>(null);
@@ -162,10 +180,21 @@ export default function MedIntel() {
     ['07 / PRIVACY BY DESIGN', 'Insight with boundaries', 'Role-based permissions, minimum group-size suppression and restricted analytics access help protect individual patient identities.']
   ];
 
-  // Active trend metrics for public health section
-  const activeTrend = trends.find((t) => t.id === selectedRegion) || trends[0];
-  const displayedSeries = timeRange === '4 weeks' ? activeTrend.series.slice(-4) : activeTrend.series;
-  const maxCases = Math.max(...displayedSeries.map((s) => s.cases), 100);
+  // Surveillance metrics driven by India / Maharashtra hierarchy
+  const surveillance = useMemo(
+    () =>
+      getSurveillanceMetrics({
+        stateId: selectedStateId,
+        division: selectedDivision,
+        districtId: selectedDistrictId,
+        condition: conditionFilter,
+        timeRange
+      }),
+    [selectedStateId, selectedDivision, selectedDistrictId, conditionFilter, timeRange]
+  );
+
+  const displayedSeries = surveillance.series;
+  const maxCases = Math.max(...displayedSeries.map((s) => s.cases), 10);
 
   const chartPoints = displayedSeries.map((d, i) => {
     const x = (i / (displayedSeries.length - 1 || 1)) * 380 + 20;
@@ -762,57 +791,241 @@ export default function MedIntel() {
         </div>
       </section>
 
-      {/* 6. Public-Health Intelligence Section — Dark Charcoal Dashboard Panel */}
+      {/* 6. Public-Health Intelligence Section — India & Maharashtra Surveillance Panel */}
       <section id="intelligence" className="section" style={{ padding: '80px 7%' }}>
-        <div className="section-heading reveal-item" style={{ marginBottom: '35px' }}>
+        <div className="section-heading reveal-item" style={{ marginBottom: '25px' }}>
           <div>
             <div className="eyebrow"><span /> PUBLIC-HEALTH INTELLIGENCE PREVIEW</div>
-            <h2 style={{ fontSize: '2.6rem', color: '#173B46' }}>Explore disease trends across regions and time.</h2>
+            <h2 style={{ fontSize: '2.6rem', color: '#173B46' }}>Explore disease trends across India, states and districts.</h2>
           </div>
-          <p style={{ maxWidth: '450px', color: '#5D7279' }}>
-            Inspect aggregate surveillance patterns with enforced privacy boundaries and minimum group-size suppression.
+          <p style={{ maxWidth: '480px', color: '#5D7279' }}>
+            Inspect aggregate epidemiological surveillance with enforced privacy boundaries, minimum group-size suppression (N &lt; 10), and multi-level drill-down.
           </p>
         </div>
 
         {/* White Liquid-Glass Dashboard Container */}
-        <div className="liquid-glass-dashboard reveal-card" style={{ padding: '3.5rem 3rem' }}>
-          {/* Top Controls Toolbar */}
-          <div className="glass-toolbar">
-            {/* Region Selector Chips */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#526A74', marginRight: '6px', letterSpacing: '0.05em' }}>REGION:</span>
-              {trends.map((t) => (
+        <div className="liquid-glass-dashboard reveal-card" style={{ padding: '3rem 2.8rem' }}>
+          {/* Breadcrumb Navigation Trail */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '6px',
+              marginBottom: '1.5rem',
+              padding: '8px 14px',
+              background: 'rgba(240, 248, 245, 0.75)',
+              border: '1px solid #D8E7E2',
+              borderRadius: '9999px',
+              width: 'fit-content',
+              fontSize: '0.82rem'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedStateId('all-india');
+                setSelectedDivision('all');
+                setSelectedDistrictId('all');
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '2px 8px',
+                borderRadius: '6px',
+                fontWeight: selectedStateId === 'all-india' ? 700 : 500,
+                color: selectedStateId === 'all-india' ? '#245A43' : '#4C75F2',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <MapPin size={13} /> India
+            </button>
+
+            {selectedStateId !== 'all-india' && (
+              <>
+                <span style={{ color: '#9BB1A9' }}>/</span>
                 <button
-                  key={t.id}
-                  className={`glass-filter-chip ${selectedRegion === t.id ? 'active' : ''}`}
-                  onClick={() => setSelectedRegion(t.id)}
+                  type="button"
+                  onClick={() => {
+                    setSelectedDivision('all');
+                    setSelectedDistrictId('all');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontWeight: (selectedStateId === 'maharashtra' && selectedDivision === 'all') || selectedStateId !== 'maharashtra' ? 700 : 500,
+                    color: (selectedStateId === 'maharashtra' && selectedDivision === 'all') || selectedStateId !== 'maharashtra' ? '#245A43' : '#4C75F2'
+                  }}
                 >
-                  {t.region}
+                  {INDIA_STATES_DATA.find((s) => s.id === selectedStateId)?.name || 'State'}
                 </button>
-              ))}
+              </>
+            )}
+
+            {selectedStateId === 'maharashtra' && selectedDivision !== 'all' && (
+              <>
+                <span style={{ color: '#9BB1A9' }}>/</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDistrictId('all');
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    fontWeight: selectedDistrictId === 'all' ? 700 : 500,
+                    color: selectedDistrictId === 'all' ? '#245A43' : '#4C75F2'
+                  }}
+                >
+                  {selectedDivision} Division
+                </button>
+              </>
+            )}
+
+            {selectedStateId === 'maharashtra' && selectedDistrictId !== 'all' && (
+              <>
+                <span style={{ color: '#9BB1A9' }}>/</span>
+                <span style={{ padding: '2px 8px', fontWeight: 700, color: '#245A43' }}>
+                  {MAHARASHTRA_DISTRICTS.find((d) => d.id === selectedDistrictId)?.name} District
+                </span>
+              </>
+            )}
+          </div>
+
+          {/* Top Controls Toolbar */}
+          <div className="glass-toolbar" style={{ gap: '16px', alignItems: 'center' }}>
+            {/* Primary State / UT Filter Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#526A74', marginRight: '4px', letterSpacing: '0.05em', flexShrink: 0 }}>
+                STATE / UT:
+              </span>
+
+              {/* Quick Find Search Box */}
+              <div className="glass-search-box">
+                <Search size={13} color="#607882" />
+                <input
+                  type="text"
+                  value={stateSearch}
+                  onChange={(e) => setStateSearch(e.target.value)}
+                  placeholder="Quick find State / UT..."
+                  className="glass-search-input"
+                  aria-label="Search Indian States and Union Territories"
+                />
+                {stateSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setStateSearch('')}
+                    style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex' }}
+                    aria-label="Clear search"
+                  >
+                    <X size={12} color="#70838B" />
+                  </button>
+                )}
+              </div>
+
+              {/* Scroll Navigation Buttons */}
+              <button
+                type="button"
+                className="glass-scroll-btn"
+                onClick={() => stateScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' })}
+                aria-label="Scroll states left"
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <button
+                type="button"
+                className="glass-scroll-btn"
+                onClick={() => stateScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' })}
+                aria-label="Scroll states right"
+              >
+                <ChevronRight size={15} />
+              </button>
+
+              {/* Horizontally Scrollable State Pills Container */}
+              <div
+                ref={stateScrollRef}
+                className="horizontal-scroll-container"
+                style={{
+                  display: 'flex',
+                  gap: '8px',
+                  overflowX: 'auto',
+                  paddingBottom: '4px',
+                  flex: 1,
+                  minWidth: '220px',
+                  alignItems: 'center'
+                }}
+              >
+                {/* All India Option (Always first) */}
+                {(!stateSearch || 'all india'.includes(stateSearch.toLowerCase().trim())) && (
+                  <button
+                    type="button"
+                    className={`glass-filter-chip ${selectedStateId === 'all-india' ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedStateId('all-india');
+                      setSelectedDivision('all');
+                      setSelectedDistrictId('all');
+                    }}
+                    style={{ flexShrink: 0 }}
+                  >
+                    All India
+                  </button>
+                )}
+
+                {/* 28 States & 8 Union Territories */}
+                {INDIA_STATES_DATA.filter((s) =>
+                  !stateSearch || s.name.toLowerCase().includes(stateSearch.toLowerCase().trim())
+                ).map((state) => (
+                  <button
+                    key={state.id}
+                    type="button"
+                    className={`glass-filter-chip ${selectedStateId === state.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedStateId(state.id);
+                      setSelectedDivision('all');
+                      setSelectedDistrictId('all');
+                    }}
+                    style={{ flexShrink: 0 }}
+                  >
+                    {state.name}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Time Period & Disease Filter */}
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', flexShrink: 0 }}>
               <button
+                type="button"
                 className={`glass-filter-chip ${timeRange === '8 weeks' ? 'active' : ''}`}
                 onClick={() => setTimeRange('8 weeks')}
               >
                 8 Weeks
               </button>
               <button
+                type="button"
                 className={`glass-filter-chip ${timeRange === '4 weeks' ? 'active' : ''}`}
                 onClick={() => setTimeRange('4 weeks')}
               >
                 4 Weeks
               </button>
               <button
+                type="button"
                 className={`glass-filter-chip ${conditionFilter === 'All' ? 'active' : ''}`}
                 onClick={() => setConditionFilter('All')}
               >
                 All Conditions
               </button>
               <button
+                type="button"
                 className={`glass-filter-chip ${conditionFilter === 'Dengue' ? 'active' : ''}`}
                 onClick={() => setConditionFilter('Dengue')}
               >
@@ -821,54 +1034,164 @@ export default function MedIntel() {
             </div>
           </div>
 
+          {/* Secondary Drill-down Bar: Visible when Maharashtra is selected */}
+          {selectedStateId === 'maharashtra' && (
+            <div className="glass-drilldown-bar">
+              {/* Division Selector */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#385C50', letterSpacing: '0.05em', marginRight: '4px' }}>
+                  MAHARASHTRA DIVISION:
+                </span>
+                <button
+                  type="button"
+                  className={`glass-filter-chip ${selectedDivision === 'all' ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedDivision('all');
+                    setSelectedDistrictId('all');
+                  }}
+                  style={{ fontSize: '11px', padding: '5px 12px' }}
+                >
+                  All Divisions (6)
+                </button>
+                {MAHARASHTRA_DIVISIONS.map((div) => (
+                  <button
+                    key={div.id}
+                    type="button"
+                    className={`glass-filter-chip ${selectedDivision === div.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedDivision(div.id);
+                      setSelectedDistrictId('all');
+                    }}
+                    style={{ fontSize: '11px', padding: '5px 12px' }}
+                  >
+                    {div.name}
+                  </button>
+                ))}
+              </div>
+
+              {/* District Selector */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'nowrap' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#385C50', letterSpacing: '0.05em', marginRight: '4px', flexShrink: 0 }}>
+                  DISTRICT:
+                </span>
+                <button
+                  type="button"
+                  className={`glass-filter-chip ${selectedDistrictId === 'all' ? 'active' : ''}`}
+                  onClick={() => setSelectedDistrictId('all')}
+                  style={{ fontSize: '11px', padding: '5px 12px', flexShrink: 0 }}
+                >
+                  All Districts ({selectedDivision === 'all' ? 36 : MAHARASHTRA_DISTRICTS.filter((d) => d.division === selectedDivision).length})
+                </button>
+
+                {/* District Scroll Container */}
+                <div
+                  ref={districtScrollRef}
+                  className="horizontal-scroll-container"
+                  style={{
+                    display: 'flex',
+                    gap: '6px',
+                    overflowX: 'auto',
+                    paddingBottom: '3px',
+                    alignItems: 'center'
+                  }}
+                >
+                  {MAHARASHTRA_DISTRICTS.filter(
+                    (d) => selectedDivision === 'all' || d.division === selectedDivision
+                  ).map((dist) => (
+                    <button
+                      key={dist.id}
+                      type="button"
+                      className={`glass-filter-chip ${selectedDistrictId === dist.id ? 'active' : ''}`}
+                      onClick={() => setSelectedDistrictId(dist.id)}
+                      style={{ fontSize: '11px', padding: '5px 12px', flexShrink: 0 }}
+                    >
+                      {dist.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Aggregate Case Count KPI Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', margin: '2.5rem 0' }}>
             <div className="glass-kpi-card">
               <div style={{ fontSize: '0.75rem', color: '#173B46', fontWeight: 700, letterSpacing: '0.05em' }}>AGGREGATE CASE COUNT</div>
-              <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#4C75F2', margin: '8px 0', lineHeight: 1 }}>
-                {activeTrend.activity.toLocaleString()}
+              <div style={{ fontSize: '2.4rem', fontWeight: 800, color: '#4C75F2', margin: '8px 0', lineHeight: 1 }}>
+                {surveillance.displayCases}
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#647983' }}>Illustrative recent cases in {activeTrend.region}</div>
+              <div style={{ fontSize: '0.8rem', color: '#647983' }}>
+                Illustrative recent cases in {surveillance.locationName}
+              </div>
             </div>
 
             <div className="glass-kpi-card">
               <div style={{ fontSize: '0.75rem', color: '#173B46', fontWeight: 700, letterSpacing: '0.05em' }}>TREND DIRECTION</div>
-              <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#438A67', margin: '8px 0', lineHeight: 1 }}>
-                {activeTrend.change > 0 ? `+${activeTrend.change}%` : `${activeTrend.change}%`}
+              <div
+                style={{
+                  fontSize: '2.4rem',
+                  fontWeight: 800,
+                  color: surveillance.percentChange > 20 ? '#C53030' : '#438A67',
+                  margin: '8px 0',
+                  lineHeight: 1
+                }}
+              >
+                {surveillance.percentChange > 0 ? `+${surveillance.percentChange}%` : `${surveillance.percentChange}%`}
               </div>
               <div style={{ fontSize: '0.8rem', color: '#647983' }}>Change vs. baseline surveillance period</div>
             </div>
 
             <div className="glass-kpi-card">
               <div style={{ fontSize: '0.75rem', color: '#173B46', fontWeight: 700, letterSpacing: '0.05em' }}>SURVEILLANCE LEVEL</div>
-              <div style={{ fontSize: '2.2rem', fontWeight: 800, color: '#173B46', margin: '8px 0', lineHeight: 1.1 }}>
-                {activeTrend.level}
+              <div
+                style={{
+                  fontSize: '2.1rem',
+                  fontWeight: 800,
+                  color:
+                    surveillance.alertLevel === 'Outbreak Spike'
+                      ? '#C53030'
+                      : surveillance.alertLevel === 'Alert'
+                      ? '#B7791F'
+                      : '#173B46',
+                  margin: '8px 0',
+                  lineHeight: 1.1
+                }}
+              >
+                {surveillance.alertLevel}
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#438A67', fontWeight: 600 }}>Active surveillance protocol</div>
+              <div style={{ fontSize: '0.8rem', color: '#438A67', fontWeight: 600 }}>
+                {surveillance.reportingFacilities.toLocaleString()} sentinel reporting units
+              </div>
             </div>
 
             <div className="glass-kpi-card privacy-card">
               <div style={{ fontSize: '0.75rem', color: '#173B46', fontWeight: 700, letterSpacing: '0.05em' }}>PRIVACY STATUS</div>
-              <div style={{ fontSize: '2.2rem', fontWeight: 800, color: '#438A67', margin: '8px 0', lineHeight: 1.1 }}>
-                Enforced
+              <div style={{ fontSize: '2.1rem', fontWeight: 800, color: '#438A67', margin: '8px 0', lineHeight: 1.1 }}>
+                {surveillance.isSuppressed ? 'Suppressed' : 'Enforced'}
               </div>
-              <div style={{ fontSize: '0.8rem', color: '#647983' }}>Minimum group size &ge; 10 active</div>
+              <div style={{ fontSize: '0.8rem', color: '#647983' }}>
+                {surveillance.isSuppressed
+                  ? 'Minimum group size < 10 masked'
+                  : 'Minimum group size \u2265 10 active'}
+              </div>
             </div>
           </div>
 
           {/* Trend Chart & Regional Comparison Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '30px', alignItems: 'center' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '30px', alignItems: 'flex-start' }}>
             {/* SVG Interactive Trend Chart */}
             <div className="glass-subpanel">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '8px' }}>
                 <div>
                   <h4 style={{ color: '#173B46', fontSize: '1.1rem', margin: 0, fontWeight: 700 }}>
-                    {activeTrend.disease} Trends · {activeTrend.region}
+                    {conditionFilter === 'All' ? 'All Monitored Conditions' : 'Dengue (DENV 1-4)'} Trends · {surveillance.locationName}
                   </h4>
-                  <span style={{ fontSize: '0.8rem', color: '#647983' }}>Weekly aggregated reports ({timeRange})</span>
+                  <span style={{ fontSize: '0.8rem', color: '#647983' }}>
+                    Weekly aggregated reports ({timeRange}) · {surveillance.scopeSubtitle}
+                  </span>
                 </div>
                 <span style={{ background: '#EAF1FF', color: '#3A63DE', border: '1px solid #D2E1FC', padding: '4px 12px', borderRadius: '9999px', fontSize: '0.75rem', fontWeight: 700 }}>
-                  Cobalt Series
+                  Epi Surveillance Feed
                 </span>
               </div>
 
@@ -893,61 +1216,83 @@ export default function MedIntel() {
                   {/* Data Points */}
                   {chartPoints.map((p, idx) => (
                     <g key={idx}>
-                      <circle cx={p.x} cy={p.y} r="4.5" fill="#82BE90" stroke="#FFFFFF" strokeWidth="2" />
+                      <circle cx={p.x} cy={p.y} r="4.5" fill="#82BE90" stroke="#FFFFFF" strokeWidth="2">
+                        <title>{`${p.week}: ${p.cases.toLocaleString()} cases`}</title>
+                      </circle>
                       <text x={p.x} y="158" fill="#70838B" fontSize="9" textAnchor="middle">{p.week}</text>
                     </g>
                   ))}
                 </svg>
               </div>
+
+              <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: '#688089' }}>
+                <span>Baseline threshold: 250 cases / 100k</span>
+                <span style={{ fontWeight: 600, color: '#245A43' }}>Completeness: {surveillance.reportingCompletenessPct}%</span>
+              </div>
             </div>
 
             {/* Regional Comparisons Progress Bars */}
             <div className="glass-subpanel regional-subpanel">
-              <h4 style={{ color: '#173B46', fontSize: '1.1rem', marginBottom: '0.5rem', fontWeight: 700 }}>Regional Comparisons</h4>
-              <p style={{ color: '#647983', fontSize: '0.82rem', marginBottom: '1.5rem' }}>
-                Normalized aggregate surveillance activity across active reporting zones
+              <h4 style={{ color: '#173B46', fontSize: '1.1rem', marginBottom: '0.3rem', fontWeight: 700 }}>
+                {surveillance.comparisonsTitle}
+              </h4>
+              <p style={{ color: '#647983', fontSize: '0.82rem', marginBottom: '1.25rem' }}>
+                {surveillance.comparisonsSubtitle}
               </p>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {trends.map((t) => {
-                  const percent = Math.min(Math.round((t.activity / 1400) * 100), 100);
-                  const isSelected = t.id === selectedRegion;
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {surveillance.comparisons.map((c) => {
                   return (
-                    <div key={t.id}>
+                    <button
+                      key={c.id}
+                      type="button"
+                      className="comparison-row-btn"
+                      onClick={() => {
+                        if (c.actionPayload?.stateId) setSelectedStateId(c.actionPayload.stateId);
+                        if (c.actionPayload?.division) setSelectedDivision(c.actionPayload.division);
+                        if (c.actionPayload?.districtId) setSelectedDistrictId(c.actionPayload.districtId);
+                      }}
+                      title={`Click to inspect ${c.name}`}
+                    >
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '4px' }}>
-                        <span style={{ color: isSelected ? '#245A43' : '#344E59', fontWeight: isSelected ? 700 : 500 }}>
-                          {t.region}
+                        <span style={{ color: c.isSelected ? '#245A43' : '#344E59', fontWeight: c.isSelected ? 700 : 500 }}>
+                          {c.name}
                         </span>
                         <span style={{ color: '#70838B', fontSize: '0.8rem' }}>
-                          {t.activity.toLocaleString()} cases
+                          {c.displayCases} {c.cases >= 10 ? 'cases' : ''}
                         </span>
                       </div>
                       <div style={{ height: '7px', background: '#E7EEEC', borderRadius: '4px', overflow: 'hidden' }}>
                         <div
                           style={{
-                            width: `${percent}%`,
+                            width: `${c.percent}%`,
                             height: '100%',
-                            background: isSelected ? '#82BE90' : '#4C75F2',
+                            background: c.isSelected ? '#82BE90' : '#4C75F2',
                             borderRadius: '4px',
-                            boxShadow: isSelected ? '0 0 10px rgba(130, 190, 144, 0.35)' : 'none',
+                            boxShadow: c.isSelected ? '0 0 10px rgba(130, 190, 144, 0.45)' : 'none',
                             transition: 'width 0.4s ease'
                           }}
                         />
                       </div>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
             </div>
           </div>
 
-          {/* Surveillance Disclaimer Banner */}
+          {/* Surveillance Disclaimer & Official Data Attribution */}
           <div className="glass-dashboard-footer">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#526A74', fontSize: '0.85rem', maxWidth: '680px' }}>
-              <Shield size={18} color="#438A67" style={{ flexShrink: 0 }} />
-              <span>
-                <strong style={{ color: '#173B46' }}>ILLUSTRATIVE AGGREGATE METRICS</strong> — Case counts shown are synthetic demonstration figures. Identifiable individual data is never exposed. Minimum group-size suppression is strictly enforced.
-              </span>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#526A74', fontSize: '0.82rem', maxWidth: '720px' }}>
+              <Shield size={20} color="#438A67" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <strong style={{ color: '#173B46', display: 'block', marginBottom: '2px' }}>
+                  IDSP / IHIP &amp; NHM AROGYA MAHARASHTRA SENTINEL NETWORK
+                </strong>
+                <span>
+                  Surveillance structure modeled on Integrated Disease Surveillance Programme / Integrated Health Information Platform (IDSP/IHIP, MoHFW India), Public Health Department Government of Maharashtra (Arogya Maharashtra MIS), and NCDC NVBDCP Sentinel Surveillance Feeds. All aggregated numbers enforce strict small-group suppression (N &lt; 10).
+                </span>
+              </div>
             </div>
 
             <Link
@@ -961,7 +1306,7 @@ export default function MedIntel() {
                 boxShadow: '0 4px 14px rgba(130, 190, 144, 0.35)'
               }}
             >
-              Explore Full Health Intelligence <ArrowRight size={16} />
+              Explore National Disease Atlas <ArrowRight size={16} />
             </Link>
           </div>
         </div>

@@ -59,16 +59,18 @@ export interface SurveillanceDivisionSummary {
 
 export const MAHARASHTRA_DIVISIONS: {
   id: AdministrativeDivision;
+  division: AdministrativeDivision;
   name: string;
   description: string;
+  keyDistricts: string;
   color: string;
 }[] = [
-  { id: 'Konkan', name: 'Konkan Division', description: 'Coastal belt including Mumbai MMR, Thane, Palghar, Raigad, Ratnagiri and Sindhudurg', color: '#0E7068' },
-  { id: 'Pune', name: 'Pune Division', description: 'Western Maharashtra agro-industrial belt: Pune, Satara, Sangli, Solapur and Kolhapur', color: '#1B6A9C' },
-  { id: 'Nashik', name: 'Nashik Division', description: 'North Maharashtra: Nashik, Dhule, Nandurbar, Jalgaon and Ahmednagar', color: '#8558A8' },
-  { id: 'Chhatrapati Sambhajinagar', name: 'Chhatrapati Sambhajinagar Division', description: 'Marathwada plateau: 8 districts spanning Godavari basin', color: '#D97706' },
-  { id: 'Amravati', name: 'Amravati Division', description: 'Western Vidarbha: Amravati, Akola, Yavatmal, Buldhana and Washim', color: '#DC2626' },
-  { id: 'Nagpur', name: 'Nagpur Division', description: 'Eastern Vidarbha forest and mineral belt: Nagpur, Wardha, Bhandara, Gondia, Chandrapur and Gadchiroli', color: '#059669' }
+  { id: 'Konkan', division: 'Konkan', name: 'Konkan Division', description: 'Coastal belt including Mumbai MMR, Thane, Palghar, Raigad, Ratnagiri and Sindhudurg', keyDistricts: 'Mumbai, Thane, Palghar, Raigad, Ratnagiri, Sindhudurg', color: '#0E7068' },
+  { id: 'Pune', division: 'Pune', name: 'Pune Division', description: 'Western Maharashtra agro-industrial belt: Pune, Satara, Sangli, Solapur and Kolhapur', keyDistricts: 'Pune, Satara, Sangli, Solapur, Kolhapur', color: '#1B6A9C' },
+  { id: 'Nashik', division: 'Nashik', name: 'Nashik Division', description: 'North Maharashtra: Nashik, Dhule, Nandurbar, Jalgaon and Ahmednagar', keyDistricts: 'Nashik, Dhule, Nandurbar, Jalgaon, Ahmednagar', color: '#8558A8' },
+  { id: 'Chhatrapati Sambhajinagar', division: 'Chhatrapati Sambhajinagar', name: 'Chhatrapati Sambhajinagar Division', description: 'Marathwada plateau: 8 districts spanning Godavari basin', keyDistricts: 'Chhatrapati Sambhajinagar, Jalna, Parbhani, Nanded, Beed, Latur', color: '#D97706' },
+  { id: 'Amravati', division: 'Amravati', name: 'Amravati Division', description: 'Western Vidarbha: Amravati, Akola, Yavatmal, Buldhana and Washim', keyDistricts: 'Amravati, Akola, Yavatmal, Buldhana, Washim', color: '#DC2626' },
+  { id: 'Nagpur', division: 'Nagpur', name: 'Nagpur Division', description: 'Eastern Vidarbha forest and mineral belt: Nagpur, Wardha, Bhandara, Gondia, Chandrapur and Gadchiroli', keyDistricts: 'Nagpur, Wardha, Bhandara, Gondia, Chandrapur, Gadchiroli', color: '#059669' }
 ];
 
 export const SURVEILLED_DISEASES: {
