@@ -689,11 +689,11 @@ export default function MedIntel() {
         </div>
       </section>
 
-      {/* How MediVault Works Section */}
+      {/* How Medviaduct Works Section */}
       <section className="section" style={{ padding: '80px 7%' }}>
         <div className="section-heading reveal-item" style={{ marginBottom: '45px' }}>
           <div>
-            <div className="eyebrow"><span /> HOW MEDIVAULT WORKS</div>
+            <div className="eyebrow"><span /> HOW MEDVIADUCT WORKS</div>
             <h2 style={{ fontSize: '2.5rem', color: '#173B46' }}>From individual care to population-level insight.</h2>
           </div>
           <p style={{ maxWidth: '420px', color: '#5D7279' }}>
@@ -977,7 +977,7 @@ export default function MedIntel() {
             </h2>
           </div>
           <p style={{ maxWidth: '520px', color: '#5D7279', fontSize: '1.05rem', lineHeight: 1.7 }}>
-            MediVault separates individual clinical care from population-level intelligence through enforced permissions, restricted data access, and minimum group-size protections.
+            Medviaduct separates individual clinical care from population-level intelligence through enforced permissions, restricted data access, and minimum group-size protections.
           </p>
         </div>
 
@@ -1097,7 +1097,7 @@ export default function MedIntel() {
           <span style={{ display: 'grid', placeItems: 'center', background: '#16191C', color: '#82BE90', width: '36px', height: '36px', borderRadius: '10px', border: '1px solid rgba(130, 190, 144, 0.4)' }}>
             <Activity size={20} />
           </span>
-          <strong style={{ letterSpacing: '2px', color: '#FFFFFF' }}>MEDIVAULT</strong>
+          <strong style={{ letterSpacing: '2px', color: '#FFFFFF' }}>MEDVIADUCT</strong>
         </div>
         <span>Secure Patient Records. Smarter Public Health.</span>
         <div style={{ display: 'flex', gap: '22px', justifyContent: 'center', margin: '15px 0', flexWrap: 'wrap', fontSize: '14px' }}>

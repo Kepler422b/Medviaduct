@@ -23,7 +23,7 @@ export default function Workspace({section,paperId}:{section:string;paperId?:str
   const userRole = data.user.role || 'clinician';
 
   useEffect(()=>{document.documentElement.classList.toggle('reduce-motion',data.reducedMotion)},[data.reducedMotion]);
-  useEffect(()=>{const context=(document as Document&{modelContext?:{registerTool:(tool:unknown,options:unknown)=>Promise<void>}}).modelContext;if(!context)return;const ctrl=new AbortController();Promise.resolve(context.registerTool({name:'search_research',title:'Search MEDIVAULT research',description:'Search the curated research library without changing saved records.',inputSchema:{type:'object',properties:{query:{type:'string'}},required:['query'],additionalProperties:false},annotations:{readOnlyHint:true},execute:(input:unknown)=>{if(!input||typeof (input as {query:unknown}).query!=='string')throw new Error('query must be text');return researchService.search((input as {query:string}).query).map(p=>({id:p.id,title:p.title,url:p.url}))}},{signal:ctrl.signal})).catch(()=>{});return()=>ctrl.abort()},[]);
+  useEffect(()=>{const context=(document as Document&{modelContext?:{registerTool:(tool:unknown,options:unknown)=>Promise<void>}}).modelContext;if(!context)return;const ctrl=new AbortController();Promise.resolve(context.registerTool({name:'search_research',title:'Search MEDVIADUCT research',description:'Search the curated research library without changing saved records.',inputSchema:{type:'object',properties:{query:{type:'string'}},required:['query'],additionalProperties:false},annotations:{readOnlyHint:true},execute:(input:unknown)=>{if(!input||typeof (input as {query:unknown}).query!=='string')throw new Error('query must be text');return researchService.search((input as {query:string}).query).map(p=>({id:p.id,title:p.title,url:p.url}))}},{signal:ctrl.signal})).catch(()=>{});return()=>ctrl.abort()},[]);
 
   if(section==='login'||section==='signup')return <><Auth signup={section==='signup'}/><Toaster richColors/></>;
 
@@ -119,7 +119,7 @@ export default function Workspace({section,paperId}:{section:string;paperId?:str
             :<Empty title="This page has not been found" description="Return to your clinical workspace." href="/dashboard" label="Open overview"/>}
         </main>
         <div className="workspace-footer">
-          <span>MEDIVAULT · Clinical Intelligence. Backed by Evidence.</span>
+          <span>MEDVIADUCT · Clinical Intelligence. Backed by Evidence.</span>
           <span>{userRole === 'admin' ? 'Population surveillance · Enforced privacy controls' : userRole === 'patient' ? 'Personal health enclave · Patient owned' : 'Research support · Illustrative analysis and trends'}</span>
         </div>
       </SidebarInset>

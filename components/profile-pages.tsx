@@ -124,7 +124,7 @@ export function Auth({signup}:{signup:boolean}){
   return (
     <main className="auth-page">
       <Link href="/" className="auth-back">
-        <ArrowLeft size={16}/> Back to MediVault
+        <ArrowLeft size={16}/> Back to Medviaduct
       </Link>
 
       {/* LEFT COLUMN: BRANDING & ROLE MISSION */}
@@ -184,7 +184,7 @@ export function Auth({signup}:{signup:boolean}){
               {signup ? 'NEW USER REGISTRATION' : 'CHOOSE YOUR WORKSPACE'}
             </span>
             <h2 className="auth-form-title">
-              {signup ? 'Create your workspace' : 'Welcome to MediVault'}
+              {signup ? 'Create your workspace' : 'Welcome to Medviaduct'}
             </h2>
             <p className="auth-form-subtitle">
               Choose your workspace to continue securely.
@@ -330,7 +330,7 @@ export function Auth({signup}:{signup:boolean}){
 
             <div className="auth-secondary-links">
               <p>
-                {signup ? 'Already have a demo profile?' : 'New to MediVault?'}{' '}
+                {signup ? 'Already have a demo profile?' : 'New to Medviaduct?'}{' '}
                 <Link className="text-link" href={signup ? '/login' : '/signup'}>
                   {signup ? 'Sign in' : 'Create a profile'}
                 </Link>
