@@ -46,3 +46,6 @@ next-env.d.ts
 /work/
 /backend/node_modules/
 /backend/dist/
+/security/node_modules/
+/security/dist/
+/supabase/.temp/

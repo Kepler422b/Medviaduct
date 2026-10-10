@@ -1,0 +1,361 @@
+{
+  "generatedAt": "2026-10-10T11:13:27.335Z",
+  "challengeTrack": "Track 02 Healthcare (HLTH-01)",
+  "member": "Member 3 (Security Implementation & Integration)",
+  "verifications": {
+    "consentCreation": {
+      "httpStatus": 201,
+      "consentId": "f2eca649-28dc-4a25-9a1b-2c5a7fdca66d",
+      "patientId": "22222222-2222-4222-8222-222222222222",
+      "effectiveStatus": "active",
+      "expiresAt": "2026-10-10T12:30:00.000Z"
+    },
+    "qrGeneration": {
+      "httpStatus": 200,
+      "payloadPrefix": "MEDVIADUCT:v1:97df00b4374dc161...",
+      "noPatientIdInQr": true
+    },
+    "qrResolution": {
+      "httpStatus": 200,
+      "accessGrantId": "b2af1e35-1b01-402e-a310-15df29feb9a2",
+      "patientId": "22222222-2222-4222-8222-222222222222",
+      "scopes": [
+        "timeline:read",
+        "clinical-summary:generate"
+      ]
+    },
+    "authorizedTimeline": {
+      "httpStatus": 200,
+      "patientId": "22222222-2222-4222-8222-222222222222",
+      "eventCount": 2,
+      "authorizedRole": "CLINICIAN"
+    },
+    "revocationEnforcement": {
+      "revokeStatus": 200,
+      "subsequentReadStatus": 403,
+      "errorCode": "ACCESS_DENIED"
+    },
+    "emergencyAccess": {
+      "declareStatus": 201,
+      "emergencyGrantId": "368c90ee-ed67-460a-bec7-15a1b0c86a0e",
+      "reasonCode": "UNRESPONSIVE_TRAUMA",
+      "notice": "Emergency access — audited — expires at 2026-10-10T12:05:00.000Z",
+      "readStatus": 200,
+      "authorizedRole": "CLINICIAN"
+    },
+    "administratorSeparation": {
+      "httpStatus": 403,
+      "errorCode": "ACCESS_DENIED",
+      "identifiableAccessBlocked": true
+    },
+    "aggregateAnalytics": {
+      "httpStatus": 200,
+      "schemaSummary": {
+        "type": "object",
+        "requiredFields": [
+          "region",
+          "timeBucket",
+          "conditionCategory",
+          "caseCount",
+          "suppressionStatus",
+          "thresholdApplied"
+        ],
+        "suppressionRule": "caseCount is null when raw count < 10 (NEVER zero)"
+      },
+      "thresholdApplied": 10,
+      "suppressedGroupVerification": {
+        "category": "Waterborne",
+        "caseCount": null,
+        "isSuppressedUnavailable": true,
+        "notZero": true
+      },
+      "outbreakDetection": {
+        "baselineHistoricalCount": 43.5,
+        "seasonalCount": 45,
+        "outbreakCount": 118,
+        "staticThreshold": 80,
+        "staticThresholdTriggered": true,
+        "statisticalAnomalyTriggered": true,
+        "detectionDelayWeeks": 0,
+        "falseAlertsReported": 0
+      },
+      "aggregatesSample": [
+        {
+          "region": "District-North",
+          "timeBucket": "2026-W38",
+          "conditionCategory": "Respiratory",
+          "caseCount": 42,
+          "suppressionStatus": "available",
+          "thresholdApplied": 10
+        },
+        {
+          "region": "District-North",
+          "timeBucket": "2026-W39",
+          "conditionCategory": "Respiratory",
+          "caseCount": 45,
+          "suppressionStatus": "available",
+          "thresholdApplied": 10
+        },
+        {
+          "region": "District-North",
+          "timeBucket": "2026-W40",
+          "conditionCategory": "Respiratory",
+          "caseCount": 118,
+          "suppressionStatus": "available",
+          "thresholdApplied": 10
+        },
+        {
+          "region": "District-North",
+          "timeBucket": "2026-W40",
+          "conditionCategory": "Waterborne",
+          "caseCount": null,
+          "suppressionStatus": "suppressed_unavailable",
+          "thresholdApplied": 10
+        },
+        {
+          "region": "District-South",
+          "timeBucket": "2026-W40",
+          "conditionCategory": "Vectorborne",
+          "caseCount": null,
+          "suppressionStatus": "suppressed_unavailable",
+          "thresholdApplied": 10
+        },
+        {
+          "region": "District-South",
+          "timeBucket": "2026-W40",
+          "conditionCategory": "Respiratory",
+          "caseCount": 28,
+          "suppressionStatus": "available",
+          "thresholdApplied": 10
+        }
+      ]
+    },
+    "centralizedAuthorization": {
+      "member2Routes": {
+        "encountersStatus": 200,
+        "medicationsStatus": 200,
+        "downloadStatus": 200,
+        "exportStatus": 200,
+        "searchStatus": 200,
+        "accessModeEnforced": "NORMAL_CONSENT"
+      },
+      "member4Summary": {
+        "httpStatus": 200,
+        "summaryGenerated": true,
+        "serverSideRecordRetrieval": true,
+        "prePostCheckPassed": true
+      },
+      "emergencyBoundaries": {
+        "downloadBlocked": true,
+        "exportBlocked": true,
+        "summaryBlocked": true
+      }
+    },
+    "auditLogsSample": [
+      {
+        "timestamp": "2026-10-10T11:13:27.578Z",
+        "action": "EMERGENCY_ACCESS_READ",
+        "outcome": "denied",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "EMERGENCY_SCOPE_NOT_GRANTED",
+        "safeResourceRefs": {
+          "grantScope": "timeline:read",
+          "requiredScope": "clinical-summary:generate",
+          "emergencyGrantId": "368c90ee-ed67-460a-bec7-15a1b0c86a0e"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.572Z",
+        "action": "EMERGENCY_ACCESS_READ",
+        "outcome": "denied",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "EMERGENCY_BULK_EXPORT_FORBIDDEN",
+        "safeResourceRefs": {
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "resourcePath": "patient_record_export",
+          "emergencyGrantId": "368c90ee-ed67-460a-bec7-15a1b0c86a0e"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.566Z",
+        "action": "EMERGENCY_ACCESS_READ",
+        "outcome": "denied",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "EMERGENCY_BULK_EXPORT_FORBIDDEN",
+        "safeResourceRefs": {
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "resourcePath": "patient_record_download",
+          "emergencyGrantId": "368c90ee-ed67-460a-bec7-15a1b0c86a0e"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.560Z",
+        "action": "AI_SUMMARY_RELEASE",
+        "outcome": "allowed",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "SUMMARY_RELEASED_AFTER_VERIFICATION",
+        "safeResourceRefs": {
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "accessGrantId": "6148c1af-768b-4d61-8511-5861ad2bb4a9"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.559Z",
+        "action": "RECORD_ACCESS_CHECK",
+        "outcome": "allowed",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "CLINICIAN_AUTHORIZED",
+        "safeResourceRefs": {
+          "grantId": "6148c1af-768b-4d61-8511-5861ad2bb4a9",
+          "consentId": "699a6574-2c22-4094-9a97-d47941ca9ad4",
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "accessMode": "NORMAL_CONSENT",
+          "clinicianId": "44444444-4444-4444-8444-444444444441",
+          "resourcePath": "patient_record",
+          "requiredScope": "clinical-summary:generate"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.556Z",
+        "action": "RECORD_ACCESS_CHECK",
+        "outcome": "allowed",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "CLINICIAN_AUTHORIZED",
+        "safeResourceRefs": {
+          "grantId": "6148c1af-768b-4d61-8511-5861ad2bb4a9",
+          "consentId": "699a6574-2c22-4094-9a97-d47941ca9ad4",
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "accessMode": "NORMAL_CONSENT",
+          "clinicianId": "44444444-4444-4444-8444-444444444441",
+          "resourcePath": "patient_record",
+          "requiredScope": "clinical-summary:generate"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.548Z",
+        "action": "RECORD_ACCESS_CHECK",
+        "outcome": "allowed",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "CLINICIAN_AUTHORIZED",
+        "safeResourceRefs": {
+          "grantId": "6148c1af-768b-4d61-8511-5861ad2bb4a9",
+          "consentId": "699a6574-2c22-4094-9a97-d47941ca9ad4",
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "accessMode": "NORMAL_CONSENT",
+          "clinicianId": "44444444-4444-4444-8444-444444444441",
+          "resourcePath": "patient_record_search",
+          "requiredScope": "timeline:read"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.541Z",
+        "action": "RECORD_ACCESS_CHECK",
+        "outcome": "allowed",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "CLINICIAN_AUTHORIZED",
+        "safeResourceRefs": {
+          "grantId": "6148c1af-768b-4d61-8511-5861ad2bb4a9",
+          "consentId": "699a6574-2c22-4094-9a97-d47941ca9ad4",
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "accessMode": "NORMAL_CONSENT",
+          "clinicianId": "44444444-4444-4444-8444-444444444441",
+          "resourcePath": "patient_record_export",
+          "requiredScope": "timeline:read"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.534Z",
+        "action": "RECORD_ACCESS_CHECK",
+        "outcome": "allowed",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "CLINICIAN_AUTHORIZED",
+        "safeResourceRefs": {
+          "grantId": "6148c1af-768b-4d61-8511-5861ad2bb4a9",
+          "consentId": "699a6574-2c22-4094-9a97-d47941ca9ad4",
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "accessMode": "NORMAL_CONSENT",
+          "clinicianId": "44444444-4444-4444-8444-444444444441",
+          "resourcePath": "patient_record_download",
+          "requiredScope": "timeline:read"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.527Z",
+        "action": "RECORD_ACCESS_CHECK",
+        "outcome": "allowed",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "CLINICIAN_AUTHORIZED",
+        "safeResourceRefs": {
+          "grantId": "6148c1af-768b-4d61-8511-5861ad2bb4a9",
+          "consentId": "699a6574-2c22-4094-9a97-d47941ca9ad4",
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "accessMode": "NORMAL_CONSENT",
+          "clinicianId": "44444444-4444-4444-8444-444444444441",
+          "resourcePath": "patient_medications",
+          "requiredScope": "timeline:read"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.520Z",
+        "action": "RECORD_ACCESS_CHECK",
+        "outcome": "allowed",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "CLINICIAN_AUTHORIZED",
+        "safeResourceRefs": {
+          "grantId": "6148c1af-768b-4d61-8511-5861ad2bb4a9",
+          "consentId": "699a6574-2c22-4094-9a97-d47941ca9ad4",
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "accessMode": "NORMAL_CONSENT",
+          "clinicianId": "44444444-4444-4444-8444-444444444441",
+          "resourcePath": "encounter_detail",
+          "requiredScope": "timeline:read"
+        }
+      },
+      {
+        "timestamp": "2026-10-10T11:13:27.513Z",
+        "action": "QR_RESOLVE",
+        "outcome": "allowed",
+        "actorRole": "CLINICIAN",
+        "internalReasonCode": "QR_RESOLVED_GRANT_ISSUED",
+        "safeResourceRefs": {
+          "patientId": "22222222-2222-4222-8222-222222222222",
+          "qrTokenId": "2bf8df49-c213-4d55-b169-53882d46285e",
+          "clinicianId": "44444444-4444-4444-8444-444444444441",
+          "accessGrantId": "6148c1af-768b-4d61-8511-5861ad2bb4a9"
+        }
+      }
+    ],
+    "phase5ModelInput": {
+      "contractVersion": "1.0",
+      "recordsCount": 6,
+      "sampleRecord": {
+        "region": "District-North",
+        "timeBucket": "2026-W38",
+        "conditionCategory": "Respiratory",
+        "caseCount": 42,
+        "suppressed": false,
+        "releaseVersion": "v1.0-2026",
+        "approvedDataLabel": "SYNTHETIC_BENCHMARK",
+        "insufficientHistory": false
+      },
+      "suppressedSample": {
+        "region": "District-North",
+        "timeBucket": "2026-W40",
+        "conditionCategory": "Respiratory",
+        "caseCount": null,
+        "suppressed": true,
+        "releaseVersion": "v1.0-2026",
+        "approvedDataLabel": "SYNTHETIC_BENCHMARK",
+        "insufficientHistory": false
+      },
+      "drilldownBlockedStatus": 403
+    },
+    "phase6ClientMethods": {
+      "cliniciansDiscovered": 2,
+      "consentCreated": "ebf21a26-a4e3-4ad8-802a-3f1dca14519c",
+      "qrIssued": "MEDVIADUCT:v1:ba5e9ef903...",
+      "grantResolved": "39d4905c-9a25-424f-a9b2-bf09b3d54e67",
+      "timelineFetched": true
+    }
+  }
+}
