@@ -625,7 +625,7 @@ export default function MedIntel() {
             </div>
 
             {/* Visual Panel inside Card A */}
-            <div style={{ background: '#DCEFE5', borderRadius: '18px', padding: '1.5rem', marginBottom: '2rem', border: '1px solid rgba(130, 190, 144, 0.3)' }}>
+            <div style={{ background: '#DCEFE5', borderRadius: '18px', padding: '1.5rem', marginBottom: 0, border: '1px solid rgba(130, 190, 144, 0.3)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <div style={{ background: '#FFFFFF', padding: '10px', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
                   <QrCode size={24} color="#16191C" />
@@ -637,10 +637,6 @@ export default function MedIntel() {
                 <ShieldCheck size={20} color="#82BE90" style={{ marginLeft: 'auto' }} />
               </div>
             </div>
-
-            <Link href="/case" className="btn primary" style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
-              Explore Clinical Records <ArrowRight size={16} />
-            </Link>
           </div>
 
           {/* CARD B — HEALTH INTELLIGENCE (Cinematic Dark Charcoal Panel) */}
@@ -683,7 +679,7 @@ export default function MedIntel() {
             </div>
 
             {/* Visual Panel inside Card B */}
-            <div style={{ background: 'rgba(255, 255, 255, 0.04)', borderRadius: '18px', padding: '1.5rem', marginBottom: '2rem', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.04)', borderRadius: '18px', padding: '1.5rem', marginBottom: 0, border: '1px solid rgba(255, 255, 255, 0.08)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#82BE90', letterSpacing: '0.05em' }}>ILLUSTRATIVE REGIONAL ACTIVITY</span>
                 <span style={{ fontSize: '0.7rem', color: '#AAB8B5', background: 'rgba(255,255,255,0.08)', padding: '2px 8px', borderRadius: '6px' }}>N &ge; 10 PROTECTED</span>
@@ -705,10 +701,6 @@ export default function MedIntel() {
                 </div>
               </div>
             </div>
-
-            <Link href="/trends" className="btn mint-pill" style={{ marginTop: 'auto', alignSelf: 'flex-start' }}>
-              Explore Health Intelligence <ArrowRight size={16} />
-            </Link>
           </div>
         </div>
 
@@ -1283,7 +1275,7 @@ export default function MedIntel() {
 
           {/* Surveillance Disclaimer & Official Data Attribution */}
           <div className="glass-dashboard-footer">
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#526A74', fontSize: '0.82rem', maxWidth: '720px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', color: '#526A74', fontSize: '0.82rem', maxWidth: '100%' }}>
               <Shield size={20} color="#438A67" style={{ flexShrink: 0, marginTop: '2px' }} />
               <div>
                 <strong style={{ color: '#173B46', display: 'block', marginBottom: '2px' }}>
@@ -1294,20 +1286,6 @@ export default function MedIntel() {
                 </span>
               </div>
             </div>
-
-            <Link
-              href="/trends"
-              className="btn mint-pill"
-              style={{
-                background: '#82BE90',
-                color: '#173B46',
-                border: '1px solid #82BE90',
-                fontWeight: 700,
-                boxShadow: '0 4px 14px rgba(130, 190, 144, 0.35)'
-              }}
-            >
-              Explore National Disease Atlas <ArrowRight size={16} />
-            </Link>
           </div>
         </div>
       </section>
