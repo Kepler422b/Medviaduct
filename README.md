@@ -1,4 +1,4 @@
-# Health BridgeAI
+# Medviaduct
 
 > **Clinical Case & Disease Intelligence** — a proposed clinical research and decision-support platform that connects a clinician’s case with relevant published evidence and disease activity.
 
