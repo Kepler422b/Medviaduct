@@ -51,11 +51,11 @@ const ROLES: {
     buttonLabel: 'Continue as Patient',
     signupButtonLabel: 'Create Patient Profile',
     icon: UserRound,
-    defaultName: 'Sarah Jenkins',
+    defaultName: 'Ananya Deshmukh',
     defaultEmail: 'patient@example.com',
     defaultProfession: 'Patient',
     defaultOrganization: 'Personal Health Enclave',
-    destination: '/dashboard',
+    destination: '/patient',
   },
   {
     id: 'clinician',
@@ -71,7 +71,7 @@ const ROLES: {
     defaultEmail: 'clinician@hospital.org',
     defaultProfession: 'Physician',
     defaultOrganization: 'Metropolitan Medical Center',
-    destination: '/dashboard',
+    destination: '/clinic',
   },
   {
     id: 'admin',
@@ -87,7 +87,7 @@ const ROLES: {
     defaultEmail: 'admin@publichealth.gov',
     defaultProfession: 'Public Health Administrator',
     defaultOrganization: 'National Health Surveillance',
-    destination: '/trends',
+    destination: '/admin',
   },
 ];
 
