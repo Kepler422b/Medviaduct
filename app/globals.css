@@ -28,8 +28,8 @@
 }
 .dark{--background:#16191C;--foreground:#AAB8B5;--primary:#82BE90}
 *{box-sizing:border-box}
-html{scroll-behavior:smooth;overflow-x:hidden;max-width:100vw}
-body{margin:0;color:var(--foreground);background:var(--paper);font-family:var(--font-sans);font-size:16px;line-height:1.6;overflow-x:hidden;width:100%;max-width:100vw}
+html{scroll-behavior:smooth;overflow-x:clip;max-width:100vw}
+body{margin:0;color:var(--foreground);background:var(--paper);font-family:var(--font-sans);font-size:16px;line-height:1.6;overflow-x:clip;width:100%;max-width:100vw}
 a{color:inherit;text-decoration:none}
 button,a,input,textarea,select{outline-offset:5px}
 button{cursor:pointer}
@@ -40,7 +40,7 @@ button,input,textarea{font:inherit}
 button svg,a svg{flex-shrink:0}
 .landing {
   background: transparent;
-  overflow-x: hidden;
+  overflow-x: clip;
   width: 100%;
   max-width: 100vw;
   position: relative;
@@ -425,22 +425,35 @@ footer a:hover{color:#82BE90}
 /* ==========================================================================
    Clinical Journey Interactive Scroll System
    ========================================================================== */
+.approach-section {
+  position: relative;
+  overflow: visible !important;
+  transform: none !important;
+  contain: none !important;
+}
+
 .journey-container {
   display: grid;
-  grid-template-columns: minmax(0, 440px) minmax(0, 1fr);
-  gap: 3.5rem;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.5fr);
+  gap: clamp(32px, 5vw, 80px);
   align-items: start;
   width: 100%;
   max-width: 100%;
   position: relative;
+  overflow: visible;
 }
 
 .journey-sticky-col {
   width: 100%;
   min-width: 0;
-  max-width: 460px;
+  max-width: 480px;
   display: flex;
   flex-direction: column;
+  position: sticky;
+  top: 100px;
+  align-self: start;
+  height: fit-content;
+  z-index: 10;
 }
 
 .journey-scroll-col {
@@ -448,27 +461,30 @@ footer a:hover{color:#82BE90}
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 2.2rem;
 }
 
-@media (min-width: 901px) {
+@media (max-width: 1024px) {
+  .journey-container {
+    grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.3fr);
+    gap: clamp(24px, 3.5vw, 48px);
+  }
   .journey-sticky-col {
-    position: sticky;
-    top: 105px;
-    align-self: flex-start;
-    height: fit-content;
+    top: 88px;
   }
 }
 
 @media (max-width: 900px) {
   .journey-container {
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 2.5rem;
   }
   .journey-sticky-col {
     position: relative;
     top: 0;
     max-width: 100%;
+    align-self: stretch;
   }
   .journey-scroll-col {
     gap: 1.5rem;
@@ -562,14 +578,19 @@ footer a:hover{color:#82BE90}
 
 /* Right side stage cards */
 .journey-stage-card {
-  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1), transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), background 0.45s ease, box-shadow 0.45s ease, border-color 0.45s ease;
+  scroll-margin-top: 110px;
+  transition: opacity 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.4s ease,
+              border-color 0.4s ease,
+              box-shadow 0.4s ease;
+  transform: none !important;
 }
 .journey-stage-card:hover {
   opacity: 0.85;
 }
 .journey-stage-card.active {
   opacity: 1 !important;
-  transform: translateY(0) !important;
+  transform: none !important;
   background: #FFFFFF !important;
   border-color: rgba(22, 25, 28, 0.12) !important;
   box-shadow: 0 16px 40px rgba(22, 25, 28, 0.08) !important;

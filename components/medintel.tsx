@@ -58,46 +58,43 @@ export default function MedIntel() {
   };
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
 
-    let ticking = false;
+    const cards = stageRefs.current.filter(Boolean) as HTMLDivElement[];
+    if (cards.length === 0) return;
 
-    const handleScrollProgress = () => {
-      if (isManualScroll.current) return;
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          const approachEl = approachRef.current;
-          if (approachEl) {
-            const rect = approachEl.getBoundingClientRect();
-            if (rect.top <= window.innerHeight && rect.bottom >= 0) {
-              const focalY = window.innerHeight * 0.42;
-              let closestIdx = 0;
-              let minDiff = Infinity;
+    const observer = new IntersectionObserver(
+      () => {
+        if (isManualScroll.current) return;
 
-              stageRefs.current.forEach((el, i) => {
-                if (!el) return;
-                const r = el.getBoundingClientRect();
-                const centerY = r.top + r.height / 2;
-                const diff = Math.abs(centerY - focalY);
-                if (diff < minDiff) {
-                  minDiff = diff;
-                  closestIdx = i;
-                }
-              });
+        // Determine active step based on focal viewing position
+        const focalY = window.innerHeight * 0.40;
+        let closestIdx = 0;
+        let minDiff = Infinity;
 
-              setScene((prev) => (prev !== closestIdx ? closestIdx : prev));
-            }
+        stageRefs.current.forEach((el, i) => {
+          if (!el) return;
+          const rect = el.getBoundingClientRect();
+          const centerY = rect.top + rect.height / 2;
+          const diff = Math.abs(centerY - focalY);
+          if (diff < minDiff) {
+            minDiff = diff;
+            closestIdx = i;
           }
-          ticking = false;
         });
-        ticking = true;
-      }
-    };
 
-    window.addEventListener('scroll', handleScrollProgress, { passive: true });
+        setScene((prev) => (prev !== closestIdx ? closestIdx : prev));
+      },
+      {
+        rootMargin: '-15% 0px -25% 0px',
+        threshold: [0, 0.25, 0.5, 0.75, 1.0]
+      }
+    );
+
+    cards.forEach((card) => observer.observe(card));
+
     return () => {
-      window.removeEventListener('scroll', handleScrollProgress);
+      observer.disconnect();
       if (manualTimer.current) clearTimeout(manualTimer.current);
     };
   }, []);
@@ -404,7 +401,7 @@ export default function MedIntel() {
       <section
         id="approach"
         ref={approachRef}
-        className="section approach-section reveal-section"
+        className="section approach-section"
         style={{ padding: '80px 7%' }}
       >
         <div className="journey-container">
@@ -501,13 +498,12 @@ export default function MedIntel() {
                   background: scene === idx ? '#FFFFFF' : 'rgba(255, 255, 255, 0.45)',
                   boxShadow: scene === idx ? '0 16px 40px rgba(22, 25, 28, 0.08)' : 'none',
                   opacity: scene === idx ? 1 : 0.45,
-                  transform: scene === idx ? 'translateY(0)' : 'translateY(8px)',
                   cursor: 'pointer',
                   minHeight: '220px',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
-                  scrollMarginTop: '130px'
+                  scrollMarginTop: '110px'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
