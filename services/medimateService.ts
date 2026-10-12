@@ -32,6 +32,30 @@ export const medimateService = {
   },
 
   generateResponse: async (userPrompt: string): Promise<MediMateMessage> => {
+    // 1. Attempt server-side guarded API chat completion first
+    try {
+      const activePatientId = patientService.getActiveId();
+      const res = await fetch('/api/medimate/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userPrompt, patientId: activePatientId })
+      });
+      if (res.ok) {
+        const json: any = await res.json();
+        if (json.success && json.data) {
+          return {
+            id: json.data.messageId || `msg-${Date.now()}`,
+            sender: 'medimate',
+            text: json.data.replyText,
+            citations: json.data.citations,
+            timestamp: json.data.timestamp || new Date().toISOString()
+          };
+        }
+      }
+    } catch {
+      // network fallback to local guardrails
+    }
+
     // Artificial slight reading delay for natural interactive dialogue
     await new Promise((resolve) => setTimeout(resolve, 450));
 
