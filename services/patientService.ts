@@ -16,8 +16,15 @@ import {
   initialImagingReports,
   initialDocuments
 } from '@/data/patientData';
+import {
+  type MockPatientBundle,
+  MOCK_PATIENT_BUNDLES,
+  ALL_MOCK_PROFILES,
+  bundleAnanya
+} from '@/data/mockPatientProfiles';
 
 const STORAGE_KEYS = {
+  activeId: 'medvia.patient.activeId',
   profile: 'medvia.patient.profile',
   allergies: 'medvia.patient.allergies',
   conditions: 'medvia.patient.conditions',
@@ -25,7 +32,8 @@ const STORAGE_KEYS = {
   consultations: 'medvia.patient.consultations',
   labs: 'medvia.patient.labs',
   imaging: 'medvia.patient.imaging',
-  documents: 'medvia.patient.documents'
+  documents: 'medvia.patient.documents',
+  qrTokens: 'medvia.qr.tokens'
 };
 
 function readItem<T>(key: string, fallback: T): T {
@@ -49,6 +57,38 @@ function writeItem<T>(key: string, value: T): void {
 }
 
 export const patientService = {
+  listProfiles: (): PatientProfile[] => ALL_MOCK_PROFILES,
+
+  getActiveId: (): string => readItem(STORAGE_KEYS.activeId, initialPatientProfile.id),
+
+  selectPatient: (patientId: string): PatientProfile => {
+    const bundle = MOCK_PATIENT_BUNDLES[patientId] || bundleAnanya;
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(STORAGE_KEYS.activeId, JSON.stringify(bundle.profile.id));
+        localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(bundle.profile));
+        localStorage.setItem(STORAGE_KEYS.allergies, JSON.stringify(bundle.allergies));
+        localStorage.setItem(STORAGE_KEYS.conditions, JSON.stringify(bundle.conditions));
+        localStorage.setItem(STORAGE_KEYS.prescriptions, JSON.stringify(bundle.prescriptions));
+        localStorage.setItem(STORAGE_KEYS.consultations, JSON.stringify(bundle.consultations));
+        localStorage.setItem(STORAGE_KEYS.labs, JSON.stringify(bundle.labResults));
+        localStorage.setItem(STORAGE_KEYS.imaging, JSON.stringify(bundle.imagingReports));
+        localStorage.setItem(STORAGE_KEYS.documents, JSON.stringify(bundle.documents));
+        localStorage.setItem(STORAGE_KEYS.qrTokens, JSON.stringify(bundle.qrTokens || []));
+        window.dispatchEvent(new Event('medvia-patient-change'));
+        window.dispatchEvent(new Event('medvia-qr-change'));
+      } catch {
+        // storage fallback
+      }
+    }
+    return bundle.profile;
+  },
+
+  getBundle: (patientId?: string): MockPatientBundle => {
+    const targetId = patientId || patientService.getActiveId();
+    return MOCK_PATIENT_BUNDLES[targetId] || bundleAnanya;
+  },
+
   getProfile: (): PatientProfile => readItem(STORAGE_KEYS.profile, initialPatientProfile),
   updateProfile: (profile: Partial<PatientProfile>): PatientProfile => {
     const current = patientService.getProfile();

@@ -63,19 +63,24 @@ export interface ConsultationVisit {
   date: string;
   type: 'Outpatient' | 'Emergency Care' | 'Telehealth' | 'Inpatient Review';
   clinicianName: string;
+  clinician?: string;
   specialty: string;
   facility: string;
+  hospital?: string;
   chiefComplaint: string;
   vitals: {
     bloodPressure: string;
     heartRate: number;
+    pulse?: number;
     temperature: string;
     respiratoryRate?: number;
     oxygenSaturation: number;
+    oxygen?: number;
     weightKg: number;
   };
   clinicalFindings: string;
   assessment: string;
+  impression?: string;
   plan: string;
   followUpDate?: string;
   status: 'Completed';
@@ -94,7 +99,7 @@ export interface LabResult {
     unit: string;
     referenceRange: string;
     isAbnormal: boolean;
-    flag?: 'High' | 'Low' | 'Critical';
+    flag?: 'High' | 'Low' | 'Critical' | 'Abnormal';
   }[];
   clinicalImpression: string;
   status: 'Final';
@@ -104,6 +109,7 @@ export interface ImagingReport {
   id: string;
   modality: 'Ultrasound' | 'X-Ray' | 'CT Scan' | 'MRI';
   bodyRegion: string;
+  anatomy?: string;
   date: string;
   orderedBy: string;
   radiologist: string;
@@ -117,9 +123,10 @@ export interface ImagingReport {
 export interface MedicalDocument {
   id: string;
   title: string;
-  category: 'Discharge Summary' | 'Consultation Note' | 'Lab Report' | 'Imaging Scan' | 'Prescription';
+  category: 'Discharge Summary' | 'Consultation Note' | 'Lab Report' | 'Imaging Scan' | 'Prescription' | 'Clinical Summary';
   date: string;
   facility: string;
+  author?: string;
   fileSize: string;
   fileType: 'PDF' | 'JPG' | 'DICOM';
   summary: string;

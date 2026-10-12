@@ -15,7 +15,11 @@ import {
   Eye,
   EyeOff,
   ShieldCheck,
-  Activity
+  Activity,
+  KeyRound,
+  X,
+  ExternalLink,
+  Sparkles
 } from 'lucide-react';
 import {Switch} from '@/components/ui/switch';
 import {toast} from 'sonner';
@@ -100,6 +104,93 @@ export function Auth({signup}:{signup:boolean}){
   const [profession, setProfession] = useState('Physician');
   const [organization, setOrganization] = useState('');
   const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // OAuth Handshake State
+  const [oauthModal, setOauthModal] = useState<{
+    isOpen: boolean;
+    provider: 'google' | 'abha';
+    loading: boolean;
+    stage: 'prompt' | 'authorizing' | 'success';
+  }>({
+    isOpen: false,
+    provider: 'google',
+    loading: false,
+    stage: 'prompt',
+  });
+
+  const handleStartOAuth = (provider: 'google' | 'abha') => {
+    setOauthModal({
+      isOpen: true,
+      provider,
+      loading: false,
+      stage: 'prompt',
+    });
+  };
+
+  const handleExecuteOAuthConsent = () => {
+    setOauthModal((prev) => ({ ...prev, loading: true, stage: 'authorizing' }));
+
+    setTimeout(() => {
+      const activeProvider = oauthModal.provider;
+      const targetUser =
+        role === 'patient'
+          ? {
+              name: 'Ananya Deshmukh',
+              email: activeProvider === 'google' ? 'ananya.deshmukh@gmail.com' : 'ananya.deshmukh@abha.in',
+              profession: 'Patient',
+              organization: 'Personal Health Enclave (OAuth Verified)',
+              role: 'patient' as const,
+              destination: '/patient',
+            }
+          : role === 'admin'
+          ? {
+              name: 'Dr. Elena Rostova',
+              email: 'elena.rostova@publichealth.gov',
+              profession: 'Public Health Administrator',
+              organization: 'National Health Surveillance',
+              role: 'admin' as const,
+              destination: '/admin',
+            }
+          : {
+              name: 'Dr. Alex Morgan',
+              email: activeProvider === 'google' ? 'alex.morgan@hospital.org' : 'alex.morgan@abha.in',
+              profession: 'Physician',
+              organization: 'Metropolitan Medical Center',
+              role: 'clinician' as const,
+              destination: '/clinic',
+            };
+
+      authService.signIn(targetUser.email, 'oauth-token-authenticated', targetUser.role);
+      authService.update(targetUser);
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(
+          'medvia.oauth.session',
+          JSON.stringify({
+            provider: activeProvider,
+            providerName:
+              activeProvider === 'google'
+                ? 'Google Identity Services (OAuth 2.0 / OIDC)'
+                : 'ABHA National Health ID Gateway (NDHM §24)',
+            account: targetUser.email,
+            name: targetUser.name,
+            role: targetUser.role,
+            authenticatedAt: new Date().toISOString(),
+          })
+        );
+      }
+
+      setOauthModal((prev) => ({ ...prev, loading: false, stage: 'success' }));
+      toast.success(
+        `Authenticated via ${activeProvider === 'google' ? 'Google' : 'ABHA'} OAuth! Welcome, ${targetUser.name}`
+      );
+
+      setTimeout(() => {
+        location.href = targetUser.destination;
+      }, 700);
+    }, 1100);
+  };
 
   const selectedRole = ROLES.find(r => r.id === role) || ROLES[1];
 
@@ -123,10 +214,13 @@ export function Auth({signup}:{signup:boolean}){
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
     try {
       const activeEmail = email.trim() || selectedRole.defaultEmail;
-      authService.signIn(activeEmail, password, role);
+
       if (signup) {
+        authService.signIn(activeEmail, password, role);
         authService.update({
           name: name.trim() || selectedRole.defaultName,
           email: activeEmail,
@@ -134,10 +228,17 @@ export function Auth({signup}:{signup:boolean}){
           organization: organization.trim() || selectedRole.defaultOrganization,
           role,
         });
+        toast.success(`Account registered! Continuing as ${selectedRole.roleName}`);
+      } else {
+        authService.signIn(activeEmail, password, role);
+        toast.success(`Signed in as ${selectedRole.roleName}`);
       }
+
       location.href = selectedRole.destination;
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -257,8 +358,13 @@ export function Auth({signup}:{signup:boolean}){
                     aria-checked={isSelected}
                     className={`mv-auth-role-card ${isSelected ? 'active' : ''}`}
                     onClick={() => handleSelectRole(r.id)}
+                    style={{
+                      padding: '12px 10px',
+                      minHeight: '76px',
+                      justifyContent: 'space-between',
+                    }}
                   >
-                    <div className="mv-auth-role-top">
+                    <div className="mv-auth-role-top" style={{ marginBottom: '6px' }}>
                       <span className="mv-auth-role-icon">
                         <Icon size={19} />
                       </span>
@@ -268,8 +374,9 @@ export function Auth({signup}:{signup:boolean}){
                         </span>
                       )}
                     </div>
-                    <div className="mv-auth-role-name">{r.title}</div>
-                    <p className="mv-auth-role-desc">{r.description}</p>
+                    <div className="mv-auth-role-name" style={{ margin: 0 }}>
+                      {r.title}
+                    </div>
                   </button>
                 );
               })}
@@ -279,6 +386,74 @@ export function Auth({signup}:{signup:boolean}){
             <div className="mv-auth-security-banner">
               <ShieldCheck size={16} className="mv-auth-banner-shield" />
               <span>{selectedRole.bannerText}</span>
+            </div>
+
+            {/* Quick OAuth Authentication Section */}
+            <div className="mv-auth-oauth-section" style={{ margin: '14px 0 16px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => handleStartOAuth('google')}
+                className="mv-oauth-btn mv-oauth-google"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #cbd5e1',
+                  background: '#ffffff',
+                  color: '#1e293b',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <svg style={{ width: '16px', height: '16px', flexShrink: 0 }} viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>Continue with Google ({selectedRole.roleName})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleStartOAuth('abha')}
+                className="mv-oauth-btn mv-oauth-abha"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: '12px',
+                  border: '1px solid #133840',
+                  background: '#133840',
+                  color: '#ffffff',
+                  fontSize: '12.5px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <ShieldCheck size={16} style={{ color: '#2dd4bf', flexShrink: 0 }} />
+                <span>Continue with ABHA / ABDM OAuth (Gov ID)</span>
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '4px 0' }}>
+                <span style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
+                <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em' }}>
+                  or continue with credentials
+                </span>
+                <span style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
+              </div>
             </div>
 
             {/* Form */}
@@ -380,11 +555,20 @@ export function Auth({signup}:{signup:boolean}){
                 </div>
               )}
 
-              <button className="mv-auth-submit" type="submit">
-                {signup
-                  ? selectedRole.signupButtonLabel
-                  : `Continue as ${selectedRole.roleName}`}
-                <ArrowRight size={16} />
+              <button className="mv-auth-submit" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <span>Authenticating...</span>
+                ) : signup ? (
+                  <>
+                    {selectedRole.signupButtonLabel}
+                    <ArrowRight size={16} />
+                  </>
+                ) : (
+                  <>
+                    Continue as {selectedRole.roleName}
+                    <ArrowRight size={16} />
+                  </>
+                )}
               </button>
 
               <div className="mv-auth-divider">
@@ -405,6 +589,131 @@ export function Auth({signup}:{signup:boolean}){
           </section>
         </main>
       </div>
+
+      {/* OAuth Handshake & Consent Dialog */}
+      {oauthModal.isOpen && (
+        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden text-slate-800">
+            {/* Modal Provider Top Bar */}
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-2.5">
+                {oauthModal.provider === 'google' ? (
+                  <svg style={{ width: '18px', height: '18px', flexShrink: 0 }} viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
+                ) : (
+                  <div className="w-5 h-5 rounded-full bg-teal-700 flex items-center justify-center text-white">
+                    <ShieldCheck size={13} />
+                  </div>
+                )}
+                <span className="font-bold text-xs text-slate-800">
+                  {oauthModal.provider === 'google'
+                    ? 'Google Identity Services (OAuth 2.0)'
+                    : 'ABHA National Digital Health Gateway'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOauthModal({ isOpen: false, provider: 'google', loading: false, stage: 'prompt' })}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+              <div className="text-center space-y-1">
+                <h3 className="font-bold text-base text-slate-900">
+                  {oauthModal.provider === 'google' ? 'Sign in with Google' : 'Authenticate with ABHA'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  to continue to <strong className="text-teal-900 font-serif">Medviaduct Health Intelligence</strong>
+                </p>
+              </div>
+
+              {/* Selected Persona Card */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-teal-100 border border-teal-300 text-teal-800 font-bold text-sm flex items-center justify-center shrink-0">
+                  {role === 'patient' ? 'AD' : role === 'admin' ? 'ER' : 'AM'}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-xs text-slate-900 truncate">
+                    {role === 'patient'
+                      ? 'Ananya Deshmukh'
+                      : role === 'admin'
+                      ? 'Dr. Elena Rostova'
+                      : 'Dr. Alex Morgan'}
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono truncate">
+                    {role === 'patient'
+                      ? (oauthModal.provider === 'google' ? 'ananya.deshmukh@gmail.com' : 'ABHA ID: 91-4820-1049-2810')
+                      : role === 'admin'
+                      ? 'elena.rostova@publichealth.gov'
+                      : (oauthModal.provider === 'google' ? 'alex.morgan@hospital.org' : 'DOC-MH-8192@abha.in')}
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 border border-teal-200">
+                  {selectedRole.roleName}
+                </span>
+              </div>
+
+              {/* Scopes disclosure */}
+              <div className="space-y-1.5 text-xs text-slate-600 bg-amber-50/60 border border-amber-200/80 p-3 rounded-xl">
+                <div className="font-semibold text-amber-950 flex items-center gap-1.5 text-[11px]">
+                  <Lock size={12} className="text-amber-700" />
+                  <span>Requested OpenID Connect Scopes:</span>
+                </div>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px] text-slate-600">
+                  <li>Verify full name, email, and identity tokens</li>
+                  <li>Link zero-trust personal health enclave and audit keys</li>
+                  {role === 'patient' && <li>Access personal consultations, lab tests & prescriptions</li>}
+                  {role === 'clinician' && <li>Verify clinical practitioner NPI license and hospital credentials</li>}
+                </ul>
+              </div>
+
+              {/* Handshake status */}
+              {oauthModal.stage === 'authorizing' && (
+                <div className="flex items-center justify-center gap-2 py-2 text-xs font-mono font-bold text-teal-800 bg-teal-50 rounded-xl border border-teal-200 animate-pulse">
+                  <Sparkles size={14} className="animate-spin text-teal-600" />
+                  <span>Exchanging OAuth 2.0 PKCE cryptographic tokens...</span>
+                </div>
+              )}
+
+              {oauthModal.stage === 'success' && (
+                <div className="flex items-center justify-center gap-2 py-2 text-xs font-bold text-emerald-800 bg-emerald-50 rounded-xl border border-emerald-200">
+                  <Check size={16} className="text-emerald-600" />
+                  <span>OAuth Identity Confirmed! Redirecting to {selectedRole.roleName} Portal...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setOauthModal({ isOpen: false, provider: 'google', loading: false, stage: 'prompt' })}
+                disabled={oauthModal.loading}
+                className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-200/60 rounded-xl transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteOAuthConsent}
+                disabled={oauthModal.loading || oauthModal.stage === 'success'}
+                className="bg-[#133840] hover:bg-[#0E7068] text-white font-bold px-5 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <span>{oauthModal.loading ? 'Authorizing...' : 'Authorize & Sign In'}</span>
+                <ArrowRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -38,7 +38,40 @@ export interface CreateQrTokenPayload {
     allergies: boolean;
     sensitiveNotes: boolean;
   };
+  customToken?: string;
 }
+
+const PRESET_DEMO_TOKENS: Record<string, { patientId: string; patientName: string }> = {
+  // Primary Ananya Deshmukh
+  'MV-SHARE-8F32A9C04B': { patientId: 'PAT-MH-40192', patientName: 'Ananya Deshmukh' },
+  'MV-SHARE-ANANYA': { patientId: 'PAT-MH-40192', patientName: 'Ananya Deshmukh' },
+  'PAT-MH-40192': { patientId: 'PAT-MH-40192', patientName: 'Ananya Deshmukh' },
+  'MH-MUM-2026-90412': { patientId: 'PAT-MH-40192', patientName: 'Ananya Deshmukh' },
+
+  // Aarav Kulkarni
+  'MV-SHARE-AARAV51204': { patientId: 'PAT-MH-51204', patientName: 'Aarav Kulkarni' },
+  'MV-SHARE-AARAV': { patientId: 'PAT-MH-51204', patientName: 'Aarav Kulkarni' },
+  'PAT-MH-51204': { patientId: 'PAT-MH-51204', patientName: 'Aarav Kulkarni' },
+  'MH-MUM-2026-51204-DEMO': { patientId: 'PAT-MH-51204', patientName: 'Aarav Kulkarni' },
+
+  // Meera Patil
+  'MV-SHARE-MEERA62381': { patientId: 'PAT-MH-62381', patientName: 'Meera Patil' },
+  'MV-SHARE-MEERA': { patientId: 'PAT-MH-62381', patientName: 'Meera Patil' },
+  'PAT-MH-62381': { patientId: 'PAT-MH-62381', patientName: 'Meera Patil' },
+  'MH-NSK-2026-62381-DEMO': { patientId: 'PAT-MH-62381', patientName: 'Meera Patil' },
+
+  // Rohan Shah
+  'MV-SHARE-ROHAN73492': { patientId: 'PAT-MH-73492', patientName: 'Rohan Shah' },
+  'MV-SHARE-ROHAN': { patientId: 'PAT-MH-73492', patientName: 'Rohan Shah' },
+  'PAT-MH-73492': { patientId: 'PAT-MH-73492', patientName: 'Rohan Shah' },
+  'MH-NGP-2026-73492-DEMO': { patientId: 'PAT-MH-73492', patientName: 'Rohan Shah' },
+
+  // Sana Khan
+  'MV-SHARE-SANA84513': { patientId: 'PAT-MH-84513', patientName: 'Sana Khan' },
+  'MV-SHARE-SANA': { patientId: 'PAT-MH-84513', patientName: 'Sana Khan' },
+  'PAT-MH-84513': { patientId: 'PAT-MH-84513', patientName: 'Sana Khan' },
+  'MH-CSN-2026-84513-DEMO': { patientId: 'PAT-MH-84513', patientName: 'Sana Khan' },
+};
 
 export const qrTokenService = {
   list: (): QrShareToken[] => {
@@ -73,7 +106,7 @@ export const qrTokenService = {
     const expiresAt = new Date(now + durationMs).toISOString();
     // Generate secure random alphanumeric token e.g. MV-SHARE-A94F81C02D
     const randomHex = Math.random().toString(36).substring(2, 7) + Math.random().toString(36).substring(2, 7);
-    const tokenString = `MV-SHARE-${randomHex.toUpperCase()}`;
+    const tokenString = payload.customToken || `MV-SHARE-${randomHex.toUpperCase()}`;
 
     const newToken: QrShareToken = {
       id: `qr-${Date.now()}`,
@@ -100,8 +133,59 @@ export const qrTokenService = {
   },
 
   getByToken: (token: string): QrShareToken | undefined => {
-    const clean = token.trim().toUpperCase();
-    return qrTokenService.list().find((t) => t.token.toUpperCase() === clean);
+    let clean = token.trim();
+    // Extract token from scanned URL or JSON payload if present
+    if (clean.includes('token=')) {
+      try {
+        const match = clean.match(/[?&]token=([^&#]+)/);
+        if (match && match[1]) {
+          clean = decodeURIComponent(match[1]);
+        }
+      } catch {
+        // fallback
+      }
+    } else if (clean.startsWith('{') && clean.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(clean);
+        if (parsed.token) clean = String(parsed.token);
+        else if (parsed.patientId) clean = String(parsed.patientId);
+      } catch {
+        // fallback
+      }
+    }
+
+    const upper = clean.toUpperCase();
+    const existing = qrTokenService.list().find((t) => t.token.toUpperCase() === upper);
+    if (existing) return existing;
+
+    const preset = PRESET_DEMO_TOKENS[upper];
+    if (preset) {
+      const generated: QrShareToken = {
+        id: `qr-${upper.toLowerCase()}`,
+        token: upper.startsWith('MV-SHARE-') ? upper : `MV-SHARE-${preset.patientId.slice(-5)}`,
+        patientId: preset.patientId,
+        patientName: preset.patientName,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 86400000).toISOString(),
+        status: 'Active',
+        recipientType: 'Clinician Verified',
+        recipientName: 'Dr. Alex Morgan, MD',
+        permittedCategories: {
+          profile: true,
+          consultations: true,
+          medications: true,
+          labResults: true,
+          imaging: true,
+          allergies: true,
+          sensitiveNotes: false
+        },
+        scanCount: 0,
+        accessLogs: []
+      };
+      writeTokens([generated, ...readTokens()]);
+      return generated;
+    }
+    return undefined;
   },
 
   revoke: (id: string): QrShareToken => {
@@ -222,7 +306,20 @@ export const qrTokenService = {
     writeTokens(updated);
 
     // Filter full record based strictly on permitted categories
-    const full = patientService.getFullRecord();
+    const bundle = token.patientId ? patientService.getBundle(token.patientId) : null;
+    const full = bundle
+      ? {
+          profile: bundle.profile,
+          allergies: bundle.allergies,
+          conditions: bundle.conditions,
+          prescriptions: bundle.prescriptions,
+          consultations: bundle.consultations,
+          labResults: bundle.labResults,
+          imaging: bundle.imagingReports,
+          documents: bundle.documents
+        }
+      : patientService.getFullRecord();
+
     const scopedRecord = {
       token: token.token,
       recipientType: token.recipientType,

@@ -1,0 +1,169 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Minimal Identity Adapter Tables (Integration placeholders until Member 2 connects canonical auth)
+enum UserRole {
+  PATIENT
+  CLINICIAN
+  ADMIN
+}
+
+model UserAccount {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  role      UserRole
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  patientProfile   PatientProfile?
+  clinicianProfile ClinicianProfile?
+
+  @@map("user_accounts")
+}
+
+model PatientProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  mrn       String   @unique
+  createdAt DateTime @default(now())
+
+  user            UserAccount            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consents        Consent[]
+  accessGrants    AccessGrant[]
+  emergencyGrants EmergencyAccessGrant[]
+
+  @@map("patient_profiles")
+}
+
+model ClinicianProfile {
+  id                           String   @id @default(uuid())
+  userId                       String   @unique
+  licenseNumber                String   @unique
+  isVerified                   Boolean  @default(false)
+  verificationStatus           String   @default("UNVERIFIED")
+  hasEmergencyAccessPermission Boolean  @default(false)
+  createdAt                    DateTime @default(now())
+
+  user            UserAccount            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consents        Consent[]
+  accessGrants    AccessGrant[]
+  emergencyGrants EmergencyAccessGrant[]
+
+  @@map("clinician_profiles")
+}
+
+// Core Security Workstream Models (Member 3)
+enum ConsentStatus {
+  active
+  revoked
+}
+
+model Consent {
+  id              String        @id @default(uuid())
+  patientId       String
+  clinicianId     String
+  scopes          String[]
+  status          ConsentStatus @default(active)
+  createdAt       DateTime      @default(now())
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdByUserId String
+
+  patient      PatientProfile   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinician    ClinicianProfile @relation(fields: [clinicianId], references: [id], onDelete: Cascade)
+  qrTokens     QrToken[]
+  accessGrants AccessGrant[]
+
+  @@index([patientId, status])
+  @@index([clinicianId])
+  @@index([expiresAt])
+  @@map("consents")
+}
+
+model QrToken {
+  id         String    @id @default(uuid())
+  consentId  String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+  revokedAt  DateTime?
+
+  consent Consent @relation(fields: [consentId], references: [id], onDelete: Cascade)
+
+  @@index([consentId])
+  @@index([tokenHash])
+  @@map("qr_tokens")
+}
+
+model AccessGrant {
+  id          String    @id @default(uuid())
+  consentId   String
+  patientId   String
+  clinicianId String
+  scopes      String[]
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+
+  consent   Consent          @relation(fields: [consentId], references: [id], onDelete: Cascade)
+  patient   PatientProfile   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinician ClinicianProfile @relation(fields: [clinicianId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, clinicianId, revokedAt])
+  @@index([expiresAt])
+  @@map("access_grants")
+}
+
+model EmergencyAccessGrant {
+  id              String    @id @default(uuid())
+  patientId       String
+  clinicianId     String
+  reasonCode      String    @default("IMMINENT_THREAT_TO_LIFE")
+  reasonText      String    @default("")
+  justification   String?
+  scope           String    @default("timeline:read")
+  scopes          String[]  @default(["timeline:read"])
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdByUserId String    @default("")
+  requestId       String    @default("")
+
+  patient   PatientProfile   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  clinician ClinicianProfile @relation(fields: [clinicianId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, clinicianId, revokedAt])
+  @@index([expiresAt])
+  @@map("emergency_access_grants")
+}
+
+enum AuditOutcome {
+  allowed
+  denied
+}
+
+model AuditEvent {
+  id                 String       @id @default(uuid())
+  timestamp          DateTime     @default(now())
+  actorUserId        String?
+  actorRole          String?
+  action             String
+  outcome            AuditOutcome
+  internalReasonCode String
+  safeResourceRefs   Json
+  requestId          String
+
+  @@index([timestamp])
+  @@index([action])
+  @@index([actorUserId])
+  @@index([requestId])
+  @@map("audit_events")
+}
+
