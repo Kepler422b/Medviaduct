@@ -1,1 +1,85 @@
-﻿{ "git": { "deploymentEnabled": false }, "ignoreCommand": "exit 0" }
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "app": {
+      "root": ".",
+      "framework": "vite",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "backend",
+          "format": "url",
+          "env": "BACKEND_URL"
+        },
+        {
+          "type": "service",
+          "service": "security",
+          "format": "url",
+          "env": "SECURITY_URL"
+        }
+      ]
+    },
+    "backend": {
+      "root": "backend",
+      "framework": "express",
+      "entrypoint": "src/app.ts",
+      "bindings": [
+        {
+          "type": "service",
+          "service": "security",
+          "format": "url",
+          "env": "SECURITY_SERVICE_URL"
+        }
+      ]
+    },
+    "security": {
+      "root": "security",
+      "framework": "express",
+      "entrypoint": "src/host/index.ts"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/cases/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/api/research/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/api/saved-research/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/api/trends/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/api/docs/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/api/security/(.*)",
+      "destination": {
+        "service": "security"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "app"
+      }
+    }
+  ]
+}

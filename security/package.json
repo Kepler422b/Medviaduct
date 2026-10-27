@@ -4,7 +4,7 @@
   "description": "MediVault / Medviaduct - Member 3 Security Workstream",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
     "start": "tsx src/host/index.ts",
     "dev": "tsx watch src/host/index.ts",
     "db:generate": "prisma generate",
