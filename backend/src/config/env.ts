@@ -9,5 +9,6 @@ const schema = z.object({
   PORT: z.coerce.number().default(5000),
   CLIENT_URL: z.string().default('http://localhost:5173'),
   UPLOAD_DIR: z.string().default('uploads'),
+  SECURITY_SERVICE_URL: z.string().optional(),
 });
 export const env = schema.parse(process.env);

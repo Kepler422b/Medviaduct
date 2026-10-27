@@ -265,7 +265,9 @@ inMemoryQrRegistry.set(initialDemoToken, {
 
 const SECURITY_URL =
   (typeof process !== 'undefined' &&
-    (process.env.NEXT_PUBLIC_SECURITY_URL || process.env.NEXT_PUBLIC_API_URL)) ||
+    (process.env.SECURITY_URL ||
+      process.env.NEXT_PUBLIC_SECURITY_URL ||
+      process.env.NEXT_PUBLIC_API_URL)) ||
   '';
 
 async function securityFetch<T>(
